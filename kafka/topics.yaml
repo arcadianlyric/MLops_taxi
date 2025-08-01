@@ -1,0 +1,142 @@
+# Kafka 主题配置
+# Chicago Taxi MLOps 平台数据流主题定义
+
+topics:
+  # 原始数据主题
+  - name: "taxi-raw-data"
+    partitions: 3
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 604800000  # 7 days
+      compression.type: "snappy"
+    description: "原始出租车行程数据流"
+    
+  # 特征数据主题
+  - name: "taxi-features"
+    partitions: 3
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 259200000  # 3 days
+      compression.type: "snappy"
+    description: "处理后的特征数据流"
+    
+  # 实时特征主题
+  - name: "taxi-features-realtime"
+    partitions: 6
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 86400000   # 1 day
+      compression.type: "lz4"
+    description: "实时特征数据流（高频更新）"
+    
+  # 预测结果主题
+  - name: "taxi-predictions"
+    partitions: 3
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 2592000000  # 30 days
+      compression.type: "snappy"
+    description: "模型预测结果流"
+    
+  # 模型指标主题
+  - name: "taxi-model-metrics"
+    partitions: 2
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 2592000000  # 30 days
+      compression.type: "gzip"
+    description: "模型性能指标流"
+    
+  # 数据质量主题
+  - name: "taxi-data-quality"
+    partitions: 2
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 1209600000  # 14 days
+      compression.type: "snappy"
+    description: "数据质量监控流"
+    
+  # 告警主题
+  - name: "taxi-alerts"
+    partitions: 2
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 2592000000  # 30 days
+      compression.type: "gzip"
+    description: "系统告警和通知流"
+    
+  # 业务指标主题
+  - name: "taxi-business-metrics"
+    partitions: 2
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 7776000000  # 90 days
+      compression.type: "snappy"
+    description: "业务指标和统计流"
+    
+  # 模型训练数据主题
+  - name: "taxi-training-data"
+    partitions: 4
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 7776000000  # 90 days
+      compression.type: "gzip"
+    description: "模型训练数据流"
+    
+  # 系统事件主题
+  - name: "taxi-system-events"
+    partitions: 2
+    replication_factor: 1
+    config:
+      cleanup.policy: "delete"
+      retention.ms: 604800000   # 7 days
+      compression.type: "snappy"
+    description: "系统事件和日志流"
+
+# 消费者组配置
+consumer_groups:
+  - name: "feature-processor-group"
+    topics: ["taxi-raw-data"]
+    description: "特征处理消费者组"
+    
+  - name: "prediction-service-group"
+    topics: ["taxi-features", "taxi-features-realtime"]
+    description: "预测服务消费者组"
+    
+  - name: "monitoring-group"
+    topics: ["taxi-predictions", "taxi-model-metrics", "taxi-data-quality"]
+    description: "监控服务消费者组"
+    
+  - name: "alert-processor-group"
+    topics: ["taxi-alerts"]
+    description: "告警处理消费者组"
+    
+  - name: "training-data-group"
+    topics: ["taxi-training-data"]
+    description: "训练数据消费者组"
+
+# 流处理应用配置
+stream_applications:
+  - name: "taxi-feature-processor"
+    input_topics: ["taxi-raw-data"]
+    output_topics: ["taxi-features", "taxi-features-realtime"]
+    processing_guarantee: "at_least_once"
+    
+  - name: "taxi-prediction-processor"
+    input_topics: ["taxi-features"]
+    output_topics: ["taxi-predictions", "taxi-model-metrics"]
+    processing_guarantee: "exactly_once"
+    
+  - name: "taxi-monitoring-processor"
+    input_topics: ["taxi-predictions", "taxi-model-metrics"]
+    output_topics: ["taxi-alerts", "taxi-business-metrics"]
+    processing_guarantee: "at_least_once"

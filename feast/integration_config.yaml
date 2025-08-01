@@ -1,0 +1,228 @@
+# Feast 特征存储集成配置
+# 独立于 TFX Pipeline 的特征工程和存储配置
+
+# Feast 特征存储配置
+feast:
+  repo_path: "feast/"
+  
+  # 在线存储配置（Redis）
+  online_store:
+    type: "redis"
+    connection_string: "redis://localhost:6379"
+    key_ttl: 86400  # 24小时
+    
+  # 离线存储配置（文件系统）
+  offline_store:
+    type: "file"
+    path: "feast/data/"
+    
+  # 注册中心配置
+  registry:
+    registry_type: "file"
+    path: "feast/data/registry.db"
+
+# 数据源配置
+data_sources:
+  # TFX Pipeline 输出路径
+  tfx_output_path: "tfx_pipeline/output/"
+  
+  # 原始数据路径
+  raw_data_path: "data/"
+  
+  # 处理后数据路径
+  processed_data_path: "feast/data/"
+  
+  # 数据格式配置
+  supported_formats: ["parquet", "csv"]
+  default_format: "parquet"
+
+# 特征处理配置
+feature_processing:
+  # 批处理大小
+  batch_size: 1000
+  
+  # 时间窗口配置
+  window_sizes:
+    short_term: "1h"
+    medium_term: "1d" 
+    long_term: "7d"
+    
+  # 聚合函数
+  aggregation_functions:
+    - "mean"
+    - "sum" 
+    - "count"
+    - "std"
+    - "min"
+    - "max"
+    
+  # 特征工程规则
+  feature_rules:
+    # 行程特征
+    trip_features:
+      - "fare_per_mile"
+      - "fare_per_minute"
+      - "speed_mph"
+      
+    # 时间特征
+    time_features:
+      - "hour_of_day"
+      - "day_of_week"
+      - "is_weekend"
+      - "time_period"
+      
+    # 区域特征
+    area_features:
+      - "pickup_area_avg_fare"
+      - "pickup_area_trip_count"
+      - "dropoff_area_avg_fare"
+      
+    # 公司特征
+    company_features:
+      - "company_avg_fare"
+      - "company_trip_count"
+      - "company_rating"
+
+# 调度配置
+scheduling:
+  # 特征刷新间隔
+  feature_refresh_interval: "1h"
+  
+  # 物化间隔
+  materialization_interval: "6h"
+  
+  # 数据保留期
+  data_retention_days: 30
+  
+  # 并发配置
+  max_workers: 4
+  
+  # 重试配置
+  max_retries: 3
+  retry_delay: 60  # 秒
+
+# 监控配置
+monitoring:
+  # 启用监控
+  enabled: true
+  
+  # 指标收集
+  metrics:
+    - "feature_freshness"
+    - "data_quality_score"
+    - "processing_latency"
+    - "error_rate"
+    
+  # 告警配置
+  alerts:
+    feature_lag_threshold: 3600  # 1小时
+    error_rate_threshold: 0.05   # 5%
+    data_quality_threshold: 0.9  # 90%
+    
+  # 日志配置
+  logging:
+    level: "INFO"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: "logs/feast_integration.log"
+
+# 数据质量配置
+data_quality:
+  # 数据验证规则
+  validation_rules:
+    trip_distance:
+      min_value: 0.0
+      max_value: 100.0
+      
+    fare_amount:
+      min_value: 0.0
+      max_value: 1000.0
+      
+    passenger_count:
+      min_value: 1
+      max_value: 6
+      
+    trip_duration:
+      min_value: 60    # 1分钟
+      max_value: 7200  # 2小时
+      
+  # 异常检测
+  anomaly_detection:
+    enabled: true
+    methods: ["isolation_forest", "statistical"]
+    contamination: 0.1
+    
+  # 数据漂移检测
+  drift_detection:
+    enabled: true
+    reference_window: "7d"
+    detection_window: "1d"
+    threshold: 0.1
+
+# 性能配置
+performance:
+  # 内存配置
+  memory_limit: "2GB"
+  
+  # 并行处理
+  parallel_processing: true
+  num_processes: 2
+  
+  # 缓存配置
+  cache:
+    enabled: true
+    size: "500MB"
+    ttl: 3600  # 1小时
+    
+  # 优化配置
+  optimization:
+    use_columnar_format: true
+    compress_data: true
+    compression_type: "snappy"
+
+# 安全配置
+security:
+  # Redis 认证
+  redis_auth:
+    enabled: false
+    password: ""
+    
+  # 数据加密
+  encryption:
+    enabled: false
+    key_path: ""
+    
+  # 访问控制
+  access_control:
+    enabled: false
+    allowed_ips: []
+
+# 集成配置
+integrations:
+  # TFX 集成
+  tfx:
+    enabled: true
+    pipeline_name: "chicago_taxi_pipeline"
+    metadata_connection_config: "sqlite:///tfx_metadata.db"
+    
+  # Kafka 集成
+  kafka:
+    enabled: true
+    bootstrap_servers: ["localhost:9092"]
+    topics:
+      feature_updates: "taxi-features"
+      data_quality: "taxi-data-quality"
+      
+  # MLflow 集成
+  mlflow:
+    enabled: true
+    tracking_uri: "http://localhost:5000"
+    experiment_name: "feast-feature-engineering"
+    
+  # 监控集成
+  monitoring:
+    prometheus:
+      enabled: true
+      port: 8080
+    grafana:
+      enabled: true
+      dashboard_path: "monitoring/grafana/feast_dashboard.json"

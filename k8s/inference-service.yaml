@@ -1,0 +1,98 @@
+# KFServing 推理服务配置
+# 支持 TensorFlow 模型在线推理
+
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: movie-recommendation-model
+  namespace: default
+  annotations:
+    serving.kserve.io/deploymentMode: "Serverless"
+spec:
+  predictor:
+    serviceAccountName: default
+    tensorflow:
+      # 模型存储路径 (可以是本地路径、GCS、S3等)
+      storageUri: "gs://mlops-models/movie-recommendation/1"
+      # 资源配置
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "512Mi"
+        limits:
+          cpu: "1"
+          memory: "2Gi"
+      # 环境变量
+      env:
+        - name: STORAGE_URI
+          value: "gs://mlops-models/movie-recommendation/1"
+    # 最小副本数 (Serverless 模式下可以为0)
+    minReplicas: 1
+    maxReplicas: 3
+    # 扩缩容配置
+    scaleTarget: 70
+    scaleMetric: concurrency
+  # 可选: 添加 Transformer 进行数据预处理
+  transformer:
+    containers:
+    - name: kserve-container
+      image: "your-registry/movie-transformer:latest"
+      env:
+        - name: FEAST_SERVING_URL
+          value: "feast-serving.feast-system.svc.cluster.local:6566"
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "256Mi"
+        limits:
+          cpu: "500m"
+          memory: "1Gi"
+
+---
+# 服务监控配置
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: movie-recommendation-monitor
+  namespace: default
+  labels:
+    app: movie-recommendation
+spec:
+  selector:
+    matchLabels:
+      app: movie-recommendation
+  endpoints:
+  - port: http-usermetric
+    interval: 30s
+    path: /metrics
+
+---
+# 网络策略 (可选)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: movie-recommendation-netpol
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: movie-recommendation
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - namespaceSelector:
+        matchLabels:
+          name: knative-serving
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: feast-system
+    ports:
+    - protocol: TCP
+      port: 6566

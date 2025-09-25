@@ -12,7 +12,7 @@ scikit-learn>=1.1.0
 
 # Kubernetes 和基础设施
 kubernetes>=10.0.1,<13.0.0
-pyyaml>=3.12,<6.0
+pyyaml>=6.0
 
 # 监控和日志
 prometheus-client>=0.14.0

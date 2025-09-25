@@ -1,0 +1,41 @@
+
+f
+H
+trip_idå‡ºç§Ÿè½¦è¡Œç¨‹å”¯ä¸€æ ‡è¯†ç¬¦"trip_idJchicago_taxi_mlops
+§ñÑÆ¸âŠ§ñÑÆ¸âŠ
+G
+)
+__dummy"
+__dummy_idJchicago_taxi_mlops
+§ñÑÆ°Ä‡§ñÑÆ á1"$66bc206d-3968-4b31-9100-c23611b4adc2*§ñÑÆğÈÄ2ÿ
+à
+trip_featureschicago_taxi_mlopstrip_id"
+
+trip_miles"
+trip_seconds"
+fare"
+pickup_hour"
+pickup_day_of_week"
+passenger_count"
+payment_type*
+typebatch*
+teammlops2€õ$:‚event_timestampZdata/trip_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢data/trip_features.parquet@b
+trip_id
+§ñÑÆÈÔÿ§ñÑÆÈÔÿ:Ê
+«
+model_inference_v1chicago_taxi_mlopsÛ
+trip_features
+
+trip_miles
+trip_seconds
+fare
+pickup_hour
+pickup_day_of_week
+passenger_count
+payment_typeBNevent_timestampZdata/trip_features.parquet¢data/trip_features.parquet"
+service	inference"
+versionv1
+§ñÑÆ°¦‘§ñÑÆ°¦‘b—event_timestampZdata/trip_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢data/trip_features.parquetªchicago_taxi_mlopsŠ2
+
+chicago_taxi_mlops
+§ñÑÆğİÃ§ñÑÆğİÃ

@@ -33,16 +33,17 @@ class FeastUIIntegration:
     def render_feast_dashboard(self):
         """渲染 Feast 特征存储仪表板"""
         
-        st.header("🍽️ Feast 特征存储")
+        st.header("🍃 Feast Feature Store")
+        st.markdown("Manage and access features for machine learning models")
         
         # 创建标签页
         tabs = st.tabs([
-            "📊 存储概览", 
-            "🔍 特征视图", 
-            "⚙️ 特征服务", 
-            "🌐 在线特征", 
-            "📈 历史特征",
-            "📋 特征详情"
+            "📊 Store Overview", 
+            "🔍 Feature Views", 
+            "⚙️ Feature Services", 
+            "🌐 Online Features", 
+            "📈 Historical Features",
+            "📋 Feature Details"
         ])
         
         with tabs[0]:
@@ -66,7 +67,7 @@ class FeastUIIntegration:
     def _render_store_overview(self):
         """渲染存储概览"""
         
-        st.subheader("📊 特征存储概览")
+        st.subheader("📊 Feature Store Overview")
         
         try:
             # 获取存储信息
@@ -79,38 +80,77 @@ class FeastUIIntegration:
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    feast_status = "🟢 已连接" if data.get("store_connected", False) else "🔴 未连接"
-                    st.metric("Feast 存储", feast_status)
+                    feast_status = "🟢 Connected" if data.get("store_connected", False) else "🔴 Disconnected"
+                    st.metric("Feast Store", feast_status)
                 
                 with col2:
-                    redis_status = "🟢 已连接" if data.get("redis_connected", False) else "🔴 未连接"
-                    st.metric("Redis 在线存储", redis_status)
+                    redis_status = "🟢 Connected" if data.get("redis_connected", False) else "🔴 Disconnected"
+                    st.metric("Redis Online Store", redis_status)
                 
                 with col3:
-                    st.metric("特征视图数量", data.get("feature_views_count", 0))
+                    st.metric("Feature Views", data.get("feature_views_count", 0))
                 
                 with col4:
-                    st.metric("特征服务数量", data.get("feature_services_count", 0))
+                    st.metric("Feature Services", data.get("feature_services_count", 0))
+                
+                # 显示状态信息
+                status = data.get("status", "unknown")
+                if status == "mock_mode":
+                    st.warning("⚠️ Running in mock mode - Feast or Redis services are not running")
+                    st.info("💡 To enable full functionality, run: `./scripts/start_feast_services.sh`")
+                elif status == "connected":
+                    st.success("✅ All services connected and running normally")
+                elif status == "error":
+                    st.error(f"❌ Connection error: {data.get('error', 'Unknown error')}")
                 
                 # 显示详细信息
-                st.subheader("📋 存储详细信息")
+                st.subheader("📋 Store Details")
                 
                 info_data = {
-                    "Feast 可用": data.get("feast_available", False),
-                    "Redis 可用": data.get("redis_available", False),
-                    "存储已连接": data.get("store_connected", False),
-                    "Redis 已连接": data.get("redis_connected", False),
-                    "仓库路径": data.get("repo_path", "未知")
+                    "Feast Available": "✅" if data.get("feast_available", False) else "❌",
+                    "Redis Available": "✅" if data.get("redis_available", False) else "❌", 
+                    "Store Connected": "✅" if data.get("store_connected", False) else "❌",
+                    "Redis Connected": "✅" if data.get("redis_connected", False) else "❌",
+                    "Repository Path": data.get("repo_path", "Unknown")
                 }
                 
-                info_df = pd.DataFrame(list(info_data.items()), columns=["项目", "状态"])
+                info_df = pd.DataFrame(list(info_data.items()), columns=["Property", "Status"])
                 st.dataframe(info_df, use_container_width=True)
                 
+                # 服务启动指南
+                if not data.get("store_connected", False) or not data.get("redis_connected", False):
+                    with st.expander("🛠️ Service Setup Guide"):
+                        st.markdown("""
+                        **To start Feast services:**
+                        
+                        1. **Start Redis and Feast services:**
+                           ```bash
+                           ./scripts/start_feast_services.sh
+                           ```
+                        
+                        2. **Manual setup (alternative):**
+                           ```bash
+                           # Start Redis
+                           redis-server --daemonize yes
+                           
+                           # Initialize Feast (in feast/ directory)
+                           cd feast
+                           feast apply
+                           feast ui --host 0.0.0.0 --port 8888
+                           ```
+                        
+                        3. **Check services:**
+                           - Redis: `redis-cli ping`
+                           - Feast UI: http://localhost:8888
+                        """)
+                
             else:
-                st.error("无法获取存储信息")
+                st.error("Unable to retrieve store information")
+                st.info("Please ensure the FastAPI backend is running on http://localhost:8000")
                 
         except Exception as e:
-            st.error(f"获取存储概览失败: {e}")
+            st.error(f"Failed to retrieve store overview: {e}")
+            st.info("Please check if the FastAPI backend is running and accessible")
     
     def _render_feature_views(self):
         """渲染特征视图"""

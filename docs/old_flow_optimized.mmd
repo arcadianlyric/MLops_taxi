@@ -1,0 +1,64 @@
+graph TD
+    %% 数据处理流程
+    subgraph "数据部分"
+        A["客户端及服务器端<br/>实时数据处理"] --> B("流处理平台<br/>准实时数据处理 Flink")
+        A --> C("大数据平台<br/>离线数据处理 Spark")
+        B --> D("用户信息(User)")
+        B --> E("物品信息(Item)")
+        B --> F("场景信息(Context)")
+        C --> D
+        C --> E
+        C --> F
+        D --> G("特征工程")
+        E --> G
+        F --> G
+        G --> H("Redis 特征库")
+    end
+
+    %% 模型训练与服务
+    subgraph "模型部分"
+        I("模型在线训练") --> J("离线评估")
+        K("候选物品库") --> L["召回层"]
+        L --> M["排序层"]
+        M --> N("推荐物品列表")
+        
+        O("模型Serving")
+        P("mleap")
+        Q("TensorFlow serving")
+        
+        L --> O
+        M --> O
+        O --> P
+        O --> Q
+        
+        R["模型上线:<br/>自研、PMML、TF Serving、二次开发"] --> N
+    end
+    
+    %% 前端展示
+    subgraph "前端部分"
+        S["基于HTML+Javascript<br/>的前端功能实现"] --> N
+    end
+    
+    %% 策略模块
+    subgraph "冷启动策略"
+        T("冷启动策略")
+    end
+    
+    subgraph "补充策略与算法"
+        U("补充策略与算法")
+    end
+
+    %% 策略连接
+    L -.-> T
+    M -.-> U
+    
+    %% 样式定义
+    classDef dataStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef modelStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef frontendStyle fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef strategyStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    
+    class H,G dataStyle
+    class O,P,Q,R modelStyle
+    class S,N frontendStyle
+    class T,U strategyStyle

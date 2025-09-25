@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-08-01T12:01:18.531950",
+  "overall_score": 0.16666666666666666,
+  "passed_tests": 1,
+  "total_tests": 6,
+  "results": [
+    {
+      "test_name": "FastAPI \u670d\u52a1\u6d4b\u8bd5",
+      "success": false,
+      "error": "HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1027a4310>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "score": 0.0,
+      "duration": 0.006719112396240234
+    },
+    {
+      "test_name": "MLflow \u670d\u52a1\u6d4b\u8bd5",
+      "success": false,
+      "details": {
+        "service_accessible": false,
+        "api_functional": false
+      },
+      "score": 0.0,
+      "duration": 0.0049479007720947266
+    },
+    {
+      "test_name": "Feast \u96c6\u6210\u6d4b\u8bd5",
+      "success": true,
+      "details": {
+        "pipeline_execution": true,
+        "data_files_generated": true,
+        "output": "Feast \u96c6\u6210\u7ba1\u9053\u72b6\u6001:\n  feast_available: False\n  feast_store_initialized: False\n  redis_available: True\n  redis_connected: True\n  config_loaded: True\n  last_run: 2025-08-01T12:01:18.455637\n\u2705 Feast \u96c6\u6210\u7ba1\u9053\u8fd0\u884c\u6210\u529f\n"
+      },
+      "score": 1.0,
+      "duration": 0.5069429874420166
+    },
+    {
+      "test_name": "Kafka \u96c6\u6210\u6d4b\u8bd5",
+      "success": false,
+      "details": {
+        "kafka_accessible": false,
+        "message_sending": false
+      },
+      "score": 0.0,
+      "duration": 0.002076864242553711
+    },
+    {
+      "test_name": "UI \u53ef\u8bbf\u95ee\u6027\u6d4b\u8bd5",
+      "success": false,
+      "details": {
+        "streamlit_ui": false,
+        "mlflow_ui": false
+      },
+      "score": 0.0,
+      "duration": 0.0031859874725341797
+    },
+    {
+      "test_name": "\u7aef\u5230\u7aef\u6570\u636e\u6d41\u6d4b\u8bd5",
+      "success": false,
+      "details": {
+        "feature_retrieval": false,
+        "model_prediction": false,
+        "prediction_content": false,
+        "metrics_recording": false
+      },
+      "score": 0.0,
+      "duration": 0.0024709701538085938
+    }
+  ]
+}

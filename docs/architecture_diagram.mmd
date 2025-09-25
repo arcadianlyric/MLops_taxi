@@ -1,0 +1,133 @@
+```mermaid
+graph TD
+    %% 用户交互层
+    A[用户] -->|交互| B(Streamlit UI)
+    B -->|API 调用| C(FastAPI API)
+    
+    %% 推理服务层
+    C -->|模型推理| D(KFServing: Taxi 预测模型)
+    C -->|特征获取| F(Feast: 在线存储 Redis)
+    C -->|模型管理| T(MLflow: 模型注册中心)
+    C -->|流处理| G(Kafka: 消息队列)
+    
+    %% 特征存储层
+    F -->|特征服务| D
+    O(Feast: 离线存储 Parquet) -->|特征物化| F
+    
+    %% 核心训练管道 (TFX Pipeline)
+    G -->|数据摄取| H(TFX Pipeline)
+    H --> H1[Apache Beam: 分布式执行引擎]
+    H1 --> I[ExampleGen: 数据摄取]
+    I --> J[StatisticsGen: 数据统计]
+    J --> K[SchemaGen: 模式生成]
+    K --> L[ExampleValidator: 数据验证]
+    L --> M[Transform: 特征转换]
+    M --> P[Trainer: 模型训练]
+    P --> R[Evaluator: 模型评估]
+    R --> S[Pusher: 模型部署]
+    
+    %% 独立的 Feast 集成管道 (最佳实践)
+    M -->|转换后数据| Z[Feast Integration Pipeline]
+    Z -->|特征工程| AA[Feature Processing]
+    AA -->|批量写入| O
+    AA -->|实时物化| F
+    Z -->|调度管理| BB[Feast Scheduler]
+    
+    %% 模型管理和部署
+    P -->|模型注册| T
+    S -->|模型部署| D
+    T -->|模型版本| D
+    
+    %% 数据版本和元数据管理
+    I -->|数据版本| U(DVC: 数据版本控制)
+    H -->|执行元数据| V(MLMD: 元数据存储)
+    T -->|模型元数据| V
+    
+    %% 实时数据流
+    G -->|实时特征| CC[Stream Processor]
+    CC -->|特征更新| F
+    G -->|模型指标| DD[Metrics Collector]
+    DD -->|性能监控| W
+    
+    %% 数据质量监控
+    L -->|数据质量| EE[Data Drift Monitor]
+    EE -->|漂移检测| B
+    EE -->|告警| X
+    
+    %% 监控和可观测性
+    C -->|API 指标| W(Prometheus: 指标收集)
+    C -->|应用日志| X(Loki: 日志聚合)
+    G -->|Kafka 日志| X
+    H -->|Pipeline 日志| X
+    Z -->|Feast 日志| X
+    W -->|指标可视化| Y(Grafana: 监控仪表板)
+    X -->|日志查询| Y
+    Y -->|告警| FF[Alert Manager]
+    
+    %% 组件分组
+    subgraph "🎯 用户界面层"
+        A
+        B
+    end
+    
+    subgraph "🚀 API 服务层"
+        C
+    end
+    
+    subgraph "🤖 模型推理层"
+        D
+        T
+    end
+    
+    subgraph "🍽️ 特征存储层 (Feast)"
+        F
+        O
+        Z
+        AA
+        BB
+    end
+    
+    subgraph "📊 核心训练管道 (TFX)"
+        H
+        I
+        J
+        K
+        L
+        M
+        P
+        R
+        S
+    end
+    
+    subgraph "🌊 流处理层 (Kafka)"
+        G
+        CC
+        DD
+    end
+    
+    subgraph "📈 监控和可观测性"
+        W
+        X
+        Y
+        FF
+        EE
+    end
+    
+    subgraph "💾 数据和元数据管理"
+        U
+        V
+    end
+    
+    %% 样式定义
+    classDef tfxComponent fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef feastComponent fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef kafkaComponent fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef monitoringComponent fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef uiComponent fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class I,J,K,L,M,P,R,S,H tfxComponent
+    class F,O,Z,AA,BB feastComponent
+    class G,CC,DD kafkaComponent
+    class W,X,Y,FF,EE monitoringComponent
+    class A,B,C uiComponent
+```

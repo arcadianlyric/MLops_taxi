@@ -1,0 +1,94 @@
+# MLflow 配置文件
+# Chicago Taxi MLOps 平台 MLflow 模型注册中心配置
+
+# MLflow 服务器配置
+server:
+  host: "127.0.0.1"
+  port: 5000
+  backend_store_uri: "sqlite:///mlflow/mlflow.db"
+  default_artifact_root: "mlflow/artifacts"
+  serve_artifacts: true
+  workers: 1
+
+# 模型注册配置
+model_registry:
+  # 注册模型名称
+  registered_models:
+    - name: "chicago-taxi-fare-predictor"
+      description: "Chicago Taxi 费用预测模型"
+      tags:
+        - "taxi"
+        - "regression"
+        - "production"
+    
+    - name: "chicago-taxi-demand-predictor"
+      description: "Chicago Taxi 需求预测模型"
+      tags:
+        - "taxi"
+        - "forecasting"
+        - "experimental"
+
+# 实验配置
+experiments:
+  default_experiment_name: "chicago-taxi-mlops"
+  experiment_tags:
+    project: "chicago-taxi"
+    team: "mlops"
+    environment: "local"
+
+# 模型阶段配置
+model_stages:
+  - "None"
+  - "Staging"
+  - "Production"
+  - "Archived"
+
+# 自动日志配置
+autolog:
+  tensorflow: true
+  sklearn: true
+  xgboost: true
+  lightgbm: true
+  pytorch: false
+
+# 模型服务配置
+model_serving:
+  default_port: 5001
+  timeout: 60
+  workers: 2
+  
+# 数据库配置
+database:
+  type: "sqlite"
+  path: "mlflow/mlflow.db"
+  
+# 存储配置
+storage:
+  artifacts_path: "mlflow/artifacts"
+  models_path: "mlflow/models"
+  
+# 监控配置
+monitoring:
+  enable_metrics: true
+  metrics_port: 5002
+  log_level: "INFO"
+
+# 集成配置
+integrations:
+  feast:
+    enabled: true
+    feature_store_path: "feast/"
+  
+  kafka:
+    enabled: true
+    bootstrap_servers: ["localhost:9092"]
+    model_metrics_topic: "taxi-model-metrics"
+  
+  prometheus:
+    enabled: true
+    metrics_port: 5002
+    
+# 安全配置
+security:
+  enable_auth: false
+  auth_provider: "basic"

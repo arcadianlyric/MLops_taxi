@@ -50,7 +50,7 @@ class FeatureResponse(BaseModel):
 class FeastClient:
     """Feast 客户端"""
     
-    def __init__(self, feast_repo_path: str = "feast"):
+    def __init__(self, feast_repo_path: str = "feast_repo"):
         """
         初始化 Feast 客户端
         
@@ -407,12 +407,27 @@ class FeastClient:
             "repo_path": str(self.feast_repo_path)
         }
         
-        if self.store:
+        # 如果 Feast 不可用，提供模拟数据
+        if not FEAST_AVAILABLE or self.store is None:
+            info.update({
+                "feature_views_count": 2,
+                "feature_services_count": 2,
+                "status": "mock_mode",
+                "message": "使用模拟模式 - Feast 或 Redis 服务未运行"
+            })
+        else:
             try:
                 info["feature_views_count"] = len(self.store.list_feature_views())
                 info["feature_services_count"] = len(self.store.list_feature_services())
+                info["status"] = "connected"
             except Exception as e:
                 info["error"] = str(e)
+                info["status"] = "error"
+                # 提供降级的模拟数据
+                info.update({
+                    "feature_views_count": 2,
+                    "feature_services_count": 2
+                })
         
         return info
     

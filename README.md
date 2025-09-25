@@ -1,193 +1,217 @@
-# 基于 TFX Pipeline 的企业级 MLOps 平台 (macOS)
+# Enterprise MLOps Platform with TFX Pipeline (macOS)
 
-基于现有 `tfx_pipeline` 代码实现的完整 MLOps 平台，集成 Kubeflow、Feast、KFServing、监控和流处理功能。
+A complete MLOps platform built on existing `tfx_pipeline` code, integrating Kubeflow, Feast, KFServing, monitoring, and stream processing capabilities.
 
-## 🏗️ 架构概览
+## 🏗️ Architecture Overview
 
-- **核心数据集**: Chicago Taxi (基于 tfx_pipeline/taxi_pipeline_native_keras.py)
-- **编排层**: Kubeflow Pipelines
-- **ML框架**: TensorFlow Extended (TFX)
-- **特征存储**: Feast
-- **模型服务**: KFServing
-- **流处理**: Kafka Kraft
-- **监控**: Loki + Grafana + Prometheus
-- **前端**: Streamlit
+- **Core Dataset**: Chicago Taxi (based on tfx_pipeline/taxi_pipeline_native_keras.py)
+- **Orchestration Layer**: Kubeflow Pipelines
+- **ML Framework**: TensorFlow Extended (TFX)
+- **Execution Engine**: Apache Beam (supports local/Dataflow/Spark)
+- **Feature Store**: Feast
+- **Model Serving**: KFServing
+- **Stream Processing**: Kafka Kraft
+- **Monitoring**: Loki + Grafana + Prometheus
+- **Frontend**: Streamlit
 - **API**: FastAPI
 
-## 🚀 一键部署
+## ⚡ Apache Beam Execution Engine
 
-### 前置要求
+TFX Pipeline uses **Apache Beam** as the underlying distributed execution engine, supporting multiple runtime modes:
 
-1. **macOS 10.15+** (推荐 16GB+ RAM)
-2. **Docker Desktop** (启用 Kubernetes)
-3. **Python 3.8+**
-4. **kubectl** 已配置
+### Execution Modes
+- **DirectRunner**: Local single-machine execution, suitable for development and testing
+- **DataflowRunner**: Google Cloud Dataflow, suitable for production environments
+- **SparkRunner**: Apache Spark cluster, suitable for existing Spark infrastructure
+- **FlinkRunner**: Apache Flink cluster, suitable for stream-batch unified scenarios
 
-### 快速开始
+### Configuration Examples
+```python
+# Local development
+beam_pipeline_args = ['--runner=DirectRunner']
 
-```bash
-# 1. 一键部署完整平台
-./scripts/deploy_complete_mlops.sh
+# Production environment (Google Cloud)
+beam_pipeline_args = [
+    '--runner=DataflowRunner',
+    '--project=your-gcp-project',
+    '--region=us-central1'
+]
 
-# 2. 等待部署完成后访问
-# Streamlit UI: http://localhost:8501
-# FastAPI 文档: http://localhost:8000/docs
+# Spark cluster
+beam_pipeline_args = [
+    '--runner=SparkRunner',
+    '--spark-master=spark://localhost:7077'
+]
 ```
 
-### 手动部署步骤
+## 🚀 One-Click Deployment
 
-1. **创建虚拟环境并安装依赖**
+### Prerequisites
+
+1. **macOS 10.15+** (16GB+ RAM recommended)
+2. **Docker Desktop** (with Kubernetes enabled)
+3. **Python 3.8+**
+4. **kubectl** configured
+
+### Quick Start
+
+```bash
+# 1. One-click deploy complete platform
+./scripts/deploy_complete_mlops.sh
+
+# 2. Access after deployment completion
+# Streamlit UI: http://localhost:8501
+# FastAPI Documentation: http://localhost:8000/docs
+```
+
+### Manual Deployment Steps
+
+1. **Create virtual environment and install dependencies**
    ```bash
    ./setup_environment.sh
    ```
 
-2. **部署 Kubernetes 基础设施**
+2. **Deploy Kubernetes infrastructure**
    ```bash
    ./scripts/deploy_kfserving.sh
    ```
 
-3. **启动应用服务**
+3. **Start application services**
    ```bash
-   # 激活环境
+   # Activate environment
    source mlops-env/bin/activate
    
-   # 启动 FastAPI
-   uvicorn api.main:app --reload &
+   # Start FastAPI (simplified version)
+   python -c "
+   import uvicorn
+   from api.simple_main import app
+   uvicorn.run(app, host='0.0.0.0', port=8000)
+   " &
    
-   # 启动 Streamlit
-   streamlit run ui/streamlit_app.py &
+   # Start Streamlit
+   streamlit run ui/streamlit_app.py --server.port 8501 &
    ```
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
-├── tfx_pipeline/           # 基础 TFX 代码 (Taxi 数据集)
+├── tfx_pipeline/           # Base TFX code (Taxi dataset)
 │   ├── taxi_pipeline_native_keras.py
 │   ├── taxi_utils_native_keras.py
 │   └── data/
-├── pipelines/              # Kubeflow 集成的 TFX pipelines
+├── pipelines/              # Kubeflow integrated TFX pipelines
 │   └── taxi_kubeflow_pipeline.py
-├── components/             # 自定义 TFX 组件
+├── components/             # Custom TFX components
 │   ├── feast_feature_pusher.py
 │   ├── kfserving_deployer.py
 │   └── model_monitoring.py
-├── api/                    # FastAPI 后端
+├── api/                    # FastAPI backend
 │   ├── main.py
 │   └── inference_client.py
-├── ui/                     # Streamlit 前端
+├── ui/                     # Streamlit frontend
 │   └── streamlit_app.py
-├── streaming/              # Kafka 流处理
+├── streaming/              # Kafka stream processing
 │   └── kafka_processor.py
-├── feast/                  # Feast 特征存储
-├── k8s/                    # Kubernetes 配置
-├── scripts/                # 部署脚本
+├── feast/                  # Feast feature store
+├── k8s/                    # Kubernetes configurations
+├── scripts/                # Deployment scripts
 │   ├── deploy_complete_mlops.sh
 │   ├── deploy_kfserving.sh
 │   ├── test_inference.py
 │   └── stop_mlops.sh
-└── requirements.txt        # Python 依赖
+└── requirements.txt        # Python dependencies
 ```
 
-## 🔧 核心组件
+## 🔧 Core Components
 
-### 基于 TFX Pipeline 的 ML 工作流
-- **数据源**: Chicago Taxi 数据集 (tfx_pipeline/data)
-- **数据验证**: 基于 taxi_utils_native_keras.py 的数据处理
-- **特征工程**: 集成 Feast 特征存储
-- **模型训练**: Native Keras 模型训练
-- **模型评估**: TensorFlow Model Analysis
-- **模型部署**: KFServing 在线推理
+### TFX Pipeline-based ML Workflow
+- **Data Source**: Chicago Taxi dataset (tfx_pipeline/data)
+- **Data Validation**: Data processing based on taxi_utils_native_keras.py
+- **Feature Engineering**: Integrated with Feast feature store
+- **Model Training**: Native Keras model training
+- **Model Evaluation**: TensorFlow Model Analysis
+- **Model Deployment**: KFServing online inference
 
-### 企业级扩展组件
-- **Feast 特征推送**: 自动将 TFX 特征推送到 Feast
-- **KFServing 部署**: 自动模型部署和版本管理
-- **模型监控**: Prometheus + Grafana + Loki 集成
-- **流处理**: Kafka 实时数据处理
+### Enterprise Extension Components
+- **Feast Feature Pusher**: Automatically push TFX features to Feast
+- **KFServing Deployment**: Automated model deployment and version management
+- **Model Monitoring**: Prometheus + Grafana + Loki integration
+- **Stream Processing**: Kafka real-time data processing
 
-### 用户界面
-- **Streamlit UI**: 交互式模型推理和监控面板
-- **FastAPI**: RESTful API 服务
-- **在线推理**: 支持单次、批量、异步推理
+### User Interface
+- **Streamlit UI**: Interactive model inference and monitoring dashboard
+- **FastAPI**: RESTful API service
+- **Online Inference**: Supports single, batch, and asynchronous inference
 
-## 🎯 使用方法
+## 🎯 Usage
 
-### 1. 访问服务
+### 1. Access Services
 - **Streamlit UI**: http://localhost:8501
-- **FastAPI 文档**: http://localhost:8000/docs
-- **健康检查**: http://localhost:8000/health
+- **FastAPI Documentation**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
 
-### 2. 监控面板
+### 2. Monitoring Dashboard
 ```bash
-# 访问 Grafana (admin/admin123)
+# Access Grafana (admin/admin123)
 kubectl port-forward -n monitoring svc/grafana 3000:3000
 
-# 访问 Prometheus
+# Access Prometheus
 kubectl port-forward -n monitoring svc/prometheus 9090:9090
 ```
 
-### 3. 测试推理
+### 3. Test Inference
 ```bash
-# 运行推理测试
+# Run inference test
 python scripts/test_inference.py
 
-# 或通过 API
+# Or test Chicago Taxi prediction via API
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
-  -d '{"user_ids": [1,2,3], "movie_ids": [101,102,103]}'
+  -d '{
+    "trip_miles": 5.2,
+    "trip_seconds": 1200,
+    "pickup_latitude": 41.8781,
+    "pickup_longitude": -87.6298,
+    "dropoff_latitude": 41.8881,
+    "dropoff_longitude": -87.6198,
+    "pickup_hour": 8,
+    "pickup_day_of_week": 1,
+    "passenger_count": 2,
+    "company": "Yellow Cab"
+  }'
 ```
 
-### 4. 管理命令
+### 4. Management Commands
 ```bash
-# 停止所有服务
+# Stop all services
 ./scripts/stop_mlops.sh
 
-# 查看日志
+# View logs
 tail -f *.log
 
-# 检查 Kubernetes 状态
+# Check Kubernetes status
 kubectl get pods --all-namespaces
 ```
 
-## 📊 监控和告警
+## 📊 Monitoring and Alerting
 
-平台包含完整的监控体系:
-- **Pipeline 执行指标**: TFX 组件运行状态
-- **模型性能监控**: 准确率、延迟、吞吐量
-- **数据漂移检测**: 特征分布变化监控
-- **基础设施监控**: CPU、内存、网络使用率
-- **业务指标**: 自定义业务 KPI
+The platform includes a comprehensive monitoring system:
+- **Pipeline Execution Metrics**: TFX component runtime status
+- **Model Performance Monitoring**: Accuracy, latency, throughput
+- **Data Drift Detection**: Feature distribution change monitoring
+- **Infrastructure Monitoring**: CPU, memory, network utilization
+- **Business Metrics**: Custom business KPIs
 
-## 🔧 故障排除
+## 🔧 Troubleshooting
 
-### 常见问题
-1. **Kubernetes 集群不可用**
-   ```bash
-   # 检查 Docker Desktop Kubernetes
-   kubectl cluster-info
-   ```
-
-2. **端口冲突**
-   ```bash
-   # 检查端口占用
-   lsof -i :8000  # FastAPI
-   lsof -i :8501  # Streamlit
-   ```
-
-3. **依赖安装失败**
-   ```bash
-   # 重新创建环境
-   rm -rf mlops-env
-   ./setup_environment.sh
-   ```
-
-### 日志查看
+### Log Viewing
 ```bash
-# 应用日志
+# Application logs
 tail -f fastapi.log
 tail -f streamlit.log
 tail -f kafka.log
 
-# Kubernetes 日志
+# Kubernetes logs
 kubectl logs -n mlops-system deployment/kafka
 kubectl logs -n monitoring deployment/prometheus
 ```

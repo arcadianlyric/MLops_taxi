@@ -66,7 +66,7 @@ class MLflowClient:
     """MLflow 客户端封装"""
     
     def __init__(self, tracking_uri: str = None):
-        self.tracking_uri = tracking_uri or "http://localhost:5000"
+        self.tracking_uri = tracking_uri or "http://localhost:5001"
         self.client = None
         self.logger = logging.getLogger(f"{__name__}.MLflowClient")
         

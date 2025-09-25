@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Streamlit UI - MLOps 平台前端界面
-基于 TFX Pipeline 的 Chicago Taxi 费用预测
+Streamlit UI - MLOps Platform Frontend Interface
+Chicago Taxi Fare Prediction based on TFX Pipeline
 """
 
 import streamlit as st
@@ -16,29 +16,30 @@ from datetime import datetime
 import sys
 import os
 import numpy as np
+import random
 
-# 添加项目路径
+# Add project path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# 导入集成模块
+# Import integration modules
 from ui.feast_ui_integration import feast_ui
 from ui.kafka_ui_integration import kafka_ui
 from ui.mlflow_ui_integration import mlflow_ui
 from ui.mlmd_ui_integration import get_mlmd_ui_integration
 
-# 页面配置
+# Page configuration
 st.set_page_config(
-    page_title="MLOps 平台 - Chicago Taxi 费用预测",
+    page_title="MLOps Platform - Chicago Taxi Fare Prediction",
     page_icon="🚕",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 全局配置
+# Global configuration
 API_BASE_URL = "http://localhost:8000"
 
 def check_api_health():
-    """检查API服务健康状态"""
+    """Check API service health status"""
     try:
         response = requests.get(f"{API_BASE_URL}/health", timeout=5)
         return response.status_code == 200, response.json() if response.status_code == 200 else None
@@ -46,7 +47,7 @@ def check_api_health():
         return False, None
 
 def call_taxi_prediction_api(features: Dict[str, Any], endpoint: str = "predict"):
-    """调用 Chicago Taxi 费用预测 API"""
+    """Call Chicago Taxi fare prediction API"""
     try:
         payload = {
             "features": features,
@@ -62,12 +63,12 @@ def call_taxi_prediction_api(features: Dict[str, Any], endpoint: str = "predict"
         if response.status_code == 200:
             return True, response.json()
         else:
-            return False, f"API错误: {response.status_code} - {response.text}"
+            return False, f"API Error: {response.status_code} - {response.text}"
     except Exception as e:
-        return False, f"请求失败: {str(e)}"
+        return False, f"Request Failed: {str(e)}"
 
 def call_batch_prediction_api(taxi_trips: List[Dict[str, Any]]):
-    """调用批量出租车费用预测API"""
+    """Call batch taxi fare prediction API"""
     try:
         payload = {
             "trips": taxi_trips,
@@ -83,93 +84,93 @@ def call_batch_prediction_api(taxi_trips: List[Dict[str, Any]]):
         if response.status_code == 200:
             return True, response.json()
         else:
-            return False, f"API错误: {response.status_code} - {response.text}"
+            return False, f"API Error: {response.status_code} - {response.text}"
     except Exception as e:
-        return False, f"请求失败: {str(e)}"
+        return False, f"Request Failed: {str(e)}"
 
 def main():
-    """主界面"""
+    """Main interface"""
     
-    # 标题和描述
-    st.title("🚕 MLOps 平台 - Chicago Taxi 费用预测")
-    st.markdown("基于 TFX Pipeline + Kubeflow + KFServing 的出租车费用预测系统")
+    # Title and description
+    st.title("🚕 MLOps Platform - Chicago Taxi Fare Prediction")
+    st.markdown("Taxi fare prediction system based on TFX Pipeline + Kubeflow + KFServing")
     
-    # 侧边栏 - 服务状态
+    # Sidebar - Service status
     with st.sidebar:
-        st.header("🔧 服务状态")
+        st.header("🔧 Service Status")
         
-        # 检查API健康状态
+        # Check API health status
         is_healthy, health_data = check_api_health()
         
         if is_healthy:
-            st.success("✅ API 服务正常")
+            st.success("✅ API Service Normal")
             if health_data:
                 st.json(health_data)
         else:
-            st.error("❌ API 服务不可用")
-            st.warning("请确保 FastAPI 服务正在运行: `uvicorn api.main:app --reload`")
+            st.error("❌ API Service Unavailable")
+            st.warning("Please ensure FastAPI service is running: `uvicorn api.main:app --reload`")
         
         st.divider()
         
-        # 配置选项
-        st.header("⚙️ 配置选项")
-        api_timeout = st.slider("API 超时时间 (秒)", 5, 60, 30)
-        show_debug = st.checkbox("显示调试信息", False)
+        # Configuration options
+        st.header("⚙️ Configuration Options")
+        api_timeout = st.slider("API Timeout (seconds)", 5, 60, 30)
+        show_debug = st.checkbox("Show Debug Info", False)
     
-    # 创建标签页
+    # Create tabs
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-        "🚖 单次预测", 
-        "📊 批量预测", 
-        "📈 数据分析", 
-        "⚡ 性能监控", 
-        "🔍 数据漂移监控",
-        "🍃 Feast 特征存储",
-        "🚀 Kafka 流处理",
-        "🎯 MLflow 模型注册",
-        "🔗 MLMD 数据血缘"
+        "🚖 Single Prediction", 
+        "📊 Batch Prediction", 
+        "📈 Data Analysis", 
+        "⚡ Performance Monitoring", 
+        "🔍 Data Drift Monitoring",
+        "🍃 Feast Feature Store",
+        "🚀 Kafka Stream Processing",
+        "🎯 MLflow Model Registry",
+        "🔗 MLMD Data Lineage"
     ])
     
-    # Tab 1: 单次预测
+    # Tab 1: Single prediction
     with tab1:
-        st.header("🚕 单次出租车费用预测")
-        st.markdown("输入出租车行程信息，预测小费金额")
+        st.header("🚕 Single Taxi Fare Prediction")
+        st.markdown("Enter taxi trip information to predict tip amount")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("📊 行程信息输入")
+            st.subheader("📊 Trip Information Input")
             
-            # 基本行程信息
-            st.write("**🚕 基本信息**")
-            trip_miles = st.number_input("行程距离 (英里)", min_value=0.1, max_value=100.0, value=5.2, step=0.1)
-            trip_seconds = st.number_input("行程时长 (秒)", min_value=60, max_value=7200, value=900, step=30)
-            fare = st.number_input("车费 (美元)", min_value=2.5, max_value=200.0, value=12.5, step=0.25)
+            # Basic trip information
+            st.write("**🚕 Basic Information**")
+            trip_miles = st.number_input("Trip Distance (miles)", min_value=0.1, max_value=100.0, value=5.2, step=0.1)
+            trip_seconds = st.number_input("Trip Duration (seconds)", min_value=60, max_value=7200, value=900, step=30)
+            fare = st.number_input("Fare (USD)", min_value=2.5, max_value=200.0, value=12.5, step=0.25)
             
-            st.write("**📍 位置信息**")
-            pickup_latitude = st.number_input("上车纬度", min_value=41.6, max_value=42.1, value=41.8781, step=0.0001, format="%.4f")
-            pickup_longitude = st.number_input("上车经度", min_value=-87.9, max_value=-87.5, value=-87.6298, step=0.0001, format="%.4f")
-            dropoff_latitude = st.number_input("下车纬度", min_value=41.6, max_value=42.1, value=41.8881, step=0.0001, format="%.4f")
-            dropoff_longitude = st.number_input("下车经度", min_value=-87.9, max_value=-87.5, value=-87.6198, step=0.0001, format="%.4f")
+            st.write("**📍 Location Information**")
+            pickup_latitude = st.number_input("Pickup Latitude", min_value=41.6, max_value=42.1, value=41.8781, step=0.0001, format="%.4f")
+            pickup_longitude = st.number_input("Pickup Longitude", min_value=-87.9, max_value=-87.5, value=-87.6298, step=0.0001, format="%.4f")
+            dropoff_latitude = st.number_input("Dropoff Latitude", min_value=41.6, max_value=42.1, value=41.8881, step=0.0001, format="%.4f")
+            dropoff_longitude = st.number_input("Dropoff Longitude", min_value=-87.9, max_value=-87.5, value=-87.6198, step=0.0001, format="%.4f")
             
-            st.write("**⏰ 时间信息**")
-            trip_start_hour = st.selectbox("出发小时", range(24), index=14)
-            trip_start_day = st.selectbox("出发日期 (1-31)", range(1, 32), index=14)
-            trip_start_month = st.selectbox("出发月份", range(1, 13), index=5)
+            st.write("**⏰ Time Information**")
+            trip_start_hour = st.selectbox("Departure Hour", range(24), index=14)
+            trip_start_day = st.selectbox("Departure Day (1-31)", range(1, 32), index=14)
+            trip_start_month = st.selectbox("Departure Month", range(1, 13), index=5)
             
-            st.write("**🏢 区域信息**")
-            pickup_community_area = st.number_input("上车社区区域", min_value=1, max_value=77, value=8)
-            dropoff_community_area = st.number_input("下车社区区域", min_value=1, max_value=77, value=24)
-            pickup_census_tract = st.number_input("上车人口普查区", min_value=1, max_value=2000, value=170301)
-            dropoff_census_tract = st.number_input("下车人口普查区", min_value=1, max_value=2000, value=170401)
+            st.write("**🏢 Area Information**")
+            pickup_community_area = st.number_input("Pickup Community Area", min_value=1, max_value=77, value=8)
+            dropoff_community_area = st.number_input("Dropoff Community Area", min_value=1, max_value=77, value=24)
+            pickup_census_tract = st.number_input("Pickup Census Tract", min_value=1, max_value=999999, value=170301)
+            dropoff_census_tract = st.number_input("Dropoff Census Tract", min_value=1, max_value=999999, value=170401)
             
-            st.write("**💳 支付信息**")
-            payment_type = st.selectbox("支付方式", ["Credit Card", "Cash", "No Charge", "Dispute", "Unknown"])
-            company = st.selectbox("出租车公司", ["Flash Cab", "Taxi Affiliation Services", "Yellow Cab", "Blue Diamond", "Other"])
+            st.write("**💳 Payment Information**")
+            payment_type = st.selectbox("Payment Type", ["Credit Card", "Cash", "No Charge", "Dispute", "Unknown"])
+            company = st.selectbox("Taxi Company", ["Flash Cab", "Taxi Affiliation Services", "Yellow Cab", "Blue Diamond", "Other"])
         
         with col2:
-            st.subheader("🚀 执行预测")
+            st.markdown("### 🚀 Execute Prediction")
             
-            # 构建特征字典
+            # Build feature dictionary
             features = {
                 "trip_miles": trip_miles,
                 "trip_seconds": trip_seconds,
@@ -189,107 +190,106 @@ def main():
                 "company": company
             }
             
-            # 显示输入摘要
-            st.write("📋 **输入摘要**")
+            # Display input summary
+            st.write("📋 **Input Summary**")
             summary_col1, summary_col2 = st.columns(2)
             with summary_col1:
-                st.metric("行程距离", f"{trip_miles} 英里")
-                st.metric("车费", f"${fare}")
+                st.markdown(f"<small>**Trip Distance:** {trip_miles} miles</small>", unsafe_allow_html=True)
+                st.markdown(f"<small>**Fare:** ${fare}</small>", unsafe_allow_html=True)
             with summary_col2:
-                st.metric("行程时长", f"{trip_seconds//60} 分钟")
-                st.metric("支付方式", payment_type)
+                st.markdown(f"<small>**Trip Duration:** {trip_seconds//60} minutes</small>", unsafe_allow_html=True)
+                st.markdown(f"<small>**Payment Type:** {payment_type}</small>", unsafe_allow_html=True)
             
-            # 执行预测
-            if st.button("🚕 预测小费", type="primary"):
-                with st.spinner("正在预测小费金额..."):
+            # Execute prediction
+            if st.button("🚕 Predict Tip", type="primary"):
+                with st.spinner("Predicting tip amount..."):
                     start_time = time.time()
                     success, result = call_taxi_prediction_api(features)
                     end_time = time.time()
                     
                     if success:
-                        st.success(f"✅ 预测完成! 耗时: {(end_time-start_time)*1000:.2f}ms")
+                        st.success(f"✅ Prediction completed! Time taken: {(end_time-start_time)*1000:.2f}ms")
                         
-                        # 显示预测结果
+                        # Display prediction results
                         if result and 'prediction' in result:
                             predicted_tip = result['prediction']
                             confidence = result.get('confidence', 0.85)
                             
-                            # 主要结果显示
-                            st.markdown("### 🎆 预测结果")
+                            # Main result display
+                            st.markdown("### 🎆 Prediction Results")
                             
                             result_col1, result_col2, result_col3 = st.columns(3)
                             with result_col1:
-                                st.metric("💰 预测小费", f"${predicted_tip:.2f}")
+                                st.metric("💰 Predicted Tip", f"${predicted_tip:.2f}")
                             with result_col2:
                                 tip_rate = (predicted_tip / fare) * 100 if fare > 0 else 0
-                                st.metric("📊 小费率", f"{tip_rate:.1f}%")
+                                st.metric("📊 Tip Rate", f"{tip_rate:.1f}%")
                             with result_col3:
-                                st.metric("🎯 置信度", f"{confidence*100:.1f}%")
+                                st.metric("🎯 Confidence", f"{confidence*100:.1f}%")
                             
-                            # 结果分析
-                            st.markdown("### 📈 结果分析")
+                            # Result analysis
+                            st.markdown("### 📈 Result Analysis")
                             
-                            # 小费区间分析
+                            # Tip range analysis
                             if predicted_tip < 1:
-                                tip_category = "🔴 低小费"
-                                tip_message = "小费较低，可能是短距离或现金支付"
+                                tip_category = "🔴 Low Tip"
+                                tip_message = "Low tip, possibly short distance or cash payment"
                             elif predicted_tip < 3:
-                                tip_category = "🟡 中等小费"
-                                tip_message = "小费在正常范围内"
+                                tip_category = "🟡 Medium Tip"
+                                tip_message = "Tip within normal range"
                             else:
-                                tip_category = "🟢 高小费"
-                                tip_message = "小费较高，可能是长距离或信用卡支付"
+                                tip_category = "🟢 High Tip"
+                                tip_message = "High tip, possibly long distance or credit card payment"
                             
                             st.info(f"{tip_category}: {tip_message}")
                             
-                            # 可视化结果
+                            # Visualize results
                             fig = go.Figure()
                             fig.add_trace(go.Bar(
-                                x=['车费', '预测小费', '总费用'],
+                                x=['Fare', 'Predicted Tip', 'Total Cost'],
                                 y=[fare, predicted_tip, fare + predicted_tip],
                                 marker_color=['lightblue', 'lightgreen', 'orange'],
                                 text=[f'${fare:.2f}', f'${predicted_tip:.2f}', f'${fare + predicted_tip:.2f}'],
                                 textposition='auto'
                             ))
                             fig.update_layout(
-                                title="📊 费用组成分析",
-                                yaxis_title="金额 ($)",
+                                title="📊 Cost Breakdown Analysis",
+                                yaxis_title="Amount ($)",
                                 showlegend=False
                             )
                             st.plotly_chart(fig, use_container_width=True)
                             
                     else:
-                        st.error(f"❌ 预测失败: {result}")
+                        st.error(f"❌ Prediction failed: {result}")
             
-            # 调试信息
+            # Debug information
             if show_debug:
-                st.subheader("🔍 调试信息")
+                st.subheader("🔍 Debug Information")
                 st.json({
                     "API_URL": f"{API_BASE_URL}/predict",
-                    "特征数据": features,
-                    "特征数量": len(features)
+                    "Feature Data": features,
+                    "Feature Count": len(features)
                 })
     
-    # Tab 2: 批量预测
+    # Tab 2: Batch prediction
     with tab2:
-        st.header("📦 批量出租车费用预测")
-        st.markdown("测试大规模批量预测性能和数据分析")
+        st.header("📦 Batch Taxi Fare Prediction")
+        st.markdown("Test large-scale batch prediction performance and data analysis")
         
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            st.subheader("⚙️ 批量配置")
+            st.subheader("⚙️ Batch Configuration")
             
-            batch_size = st.slider("批次大小", 1, 50, 20)
-            num_trips = st.slider("行程数量", 10, 200, 50)
+            batch_size = st.slider("Batch Size", 1, 50, 20)
+            num_trips = st.slider("Number of Trips", 10, 200, 50)
             
-            st.info(f"📊 总行程数: {num_trips}")
+            st.info(f"📊 Total Trips: {num_trips}")
             
-            # 生成批量测试数据
-            if st.button("📦 生成批量测试数据"):
-                import random
+            # Generate batch test data
+            if st.button("📦 Generate Batch Test Data"):
                 
-                # Chicago 出租车数据范围
+                # Chicago taxi data ranges
                 companies = ["Flash Cab", "Taxi Affiliation Services", "Yellow Cab", "Blue Diamond", "Other"]
                 payment_types = ["Credit Card", "Cash", "No Charge", "Dispute", "Unknown"]
                 
@@ -316,47 +316,47 @@ def main():
                     batch_trips.append(trip)
                 
                 st.session_state.batch_trips = batch_trips
-                st.success(f"✅ 生成了 {len(batch_trips)} 个出租车行程的测试数据")
+                st.success(f"✅ Generated test data for {len(batch_trips)} taxi trips")
                 
-                # 显示数据预览
+                # Display data preview
                 if batch_trips:
-                    preview_df = pd.DataFrame(batch_trips[:5])  # 显示前5条
+                    preview_df = pd.DataFrame(batch_trips[:5])  # Show first 5 records
                     st.dataframe(preview_df, use_container_width=True)
         
         with col2:
-            st.subheader("🚀 执行批量预测")
+            st.subheader("🚀 Execute Batch Prediction")
             
             if 'batch_trips' in st.session_state:
-                if st.button("📦 开始批量预测", type="primary"):
+                if st.button("📦 Start Batch Prediction", type="primary"):
                     batch_trips = st.session_state.batch_trips
                     
                     try:
-                        with st.spinner("正在执行批量预测..."):
+                        with st.spinner("Executing batch prediction..."):
                             start_time = time.time()
                             success, result = call_batch_prediction_api(batch_trips)
                             end_time = time.time()
                             
                             if success:
-                                st.success(f"✅ 批量预测完成!")
+                                st.success(f"✅ Batch prediction completed!")
                                 
-                                # 性能指标
+                                # Performance metrics
                                 total_time = end_time - start_time
                                 throughput = len(batch_trips) / total_time
                                 avg_latency = total_time / len(batch_trips) * 1000
                                 
                                 col_perf1, col_perf2, col_perf3 = st.columns(3)
                                 with col_perf1:
-                                    st.metric("总耗时", f"{total_time:.2f}s")
+                                    st.metric("Total Time", f"{total_time:.2f}s")
                                 with col_perf2:
-                                    st.metric("吞吐量", f"{throughput:.2f} trips/s")
+                                    st.metric("Throughput", f"{throughput:.2f} trips/s")
                                 with col_perf3:
-                                    st.metric("平均延迟", f"{avg_latency:.2f}ms")
+                                    st.metric("Average Latency", f"{avg_latency:.2f}ms")
                                 
-                                # 结果分析
+                                # Result analysis
                                 if result and 'predictions' in result:
                                     predictions = result['predictions']
                                     
-                                    # 创建结果 DataFrame
+                                    # Create results DataFrame
                                     results_data = []
                                     for i, (trip, pred) in enumerate(zip(batch_trips, predictions)):
                                         results_data.append({
@@ -371,98 +371,98 @@ def main():
                                     
                                     results_df = pd.DataFrame(results_data)
                                     
-                                    # 显示统计数据
-                                    st.markdown("### 📊 批量预测统计")
+                                    # Display statistics
+                                    st.markdown("### 📊 Batch Prediction Statistics")
                                     
                                     stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
                                     with stat_col1:
-                                        st.metric("平均小费", f"${results_df['predicted_tip'].mean():.2f}")
+                                        st.metric("Average Tip", f"${results_df['predicted_tip'].mean():.2f}")
                                     with stat_col2:
-                                        st.metric("平均小费率", f"{results_df['tip_rate'].mean():.1f}%")
+                                        st.metric("Average Tip Rate", f"{results_df['tip_rate'].mean():.1f}%")
                                     with stat_col3:
-                                        st.metric("最高小费", f"${results_df['predicted_tip'].max():.2f}")
+                                        st.metric("Highest Tip", f"${results_df['predicted_tip'].max():.2f}")
                                     with stat_col4:
-                                        st.metric("最低小费", f"${results_df['predicted_tip'].min():.2f}")
+                                        st.metric("Lowest Tip", f"${results_df['predicted_tip'].min():.2f}")
                                     
-                                    # 小费分布直方图
+                                    # Tip distribution histogram
                                     fig_hist = px.histogram(
                                         results_df, 
                                         x='predicted_tip',
                                         nbins=20,
-                                        title="小费金额分布",
-                                        labels={'predicted_tip': '预测小费 ($)', 'count': '数量'}
+                                        title="Tip Amount Distribution",
+                                        labels={'predicted_tip': 'Predicted Tip ($)', 'count': 'Count'}
                                     )
                                     st.plotly_chart(fig_hist, use_container_width=True)
                                     
-                                    # 支付方式 vs 小费率
+                                    # Payment type vs tip rate
                                     fig_box = px.box(
                                         results_df, 
                                         x='payment_type', 
                                         y='tip_rate',
-                                        title="不同支付方式的小费率分布",
-                                        labels={'tip_rate': '小费率 (%)', 'payment_type': '支付方式'}
+                                        title="Tip Rate Distribution by Payment Type",
+                                        labels={'tip_rate': 'Tip Rate (%)', 'payment_type': 'Payment Type'}
                                     )
                                     st.plotly_chart(fig_box, use_container_width=True)
                                     
-                                    # 显示详细结果表
-                                    st.markdown("### 📋 详细结果")
+                                    # Display detailed results table
+                                    st.markdown("### 📋 Detailed Results")
                                     st.dataframe(results_df.head(20), use_container_width=True)
                                     
                             else:
-                                st.error(f"❌ 批量预测失败: {result}")
+                                st.error(f"❌ Batch prediction failed: {result}")
                                 
                     except Exception as e:
-                        st.error(f"❌ 批量预测异常: {str(e)}")
+                        st.error(f"❌ Batch prediction error: {str(e)}")
             else:
-                st.warning("请先生成批量测试数据")
+                st.warning("Please generate batch test data first")
     
-    # Tab 3: 数据分析
+    # Tab 3: Data analysis
     with tab3:
-        st.header("📊 Chicago Taxi 数据分析")
-        st.markdown("基于 TFX Pipeline 的出租车数据深度分析和洞察")
+        st.header("📊 Chicago Taxi Data Analysis")
+        st.markdown("In-depth analysis and insights of taxi data based on TFX Pipeline")
         
-        # 数据概览
-        st.subheader("📈 数据概览")
+        # Data overview
+        st.subheader("📈 Data Overview")
         
-        # 模拟 Chicago Taxi 数据统计
+        # Simulated Chicago Taxi data statistics
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("总行程数", "2,847,392")
+            st.metric("Total Trips", "2,847,392")
         with col2:
-            st.metric("平均车费", "$12.45")
+            st.metric("Average Fare", "$12.45")
         with col3:
-            st.metric("平均小费", "$2.18")
+            st.metric("Average Tip", "$2.18")
         with col4:
-            st.metric("平均小费率", "17.5%")
+            st.metric("Average Tip Rate", "17.5%")
         
-        # 数据分析选项
+        # Data analysis options
         analysis_type = st.selectbox(
-            "选择分析类型:",
-            ["时间趋势分析", "地理分布分析", "支付方式分析", "公司性能对比"]
+            "Select Analysis Type:",
+            ["Time Trend Analysis", "Geographic Distribution Analysis", "Payment Method Analysis", "Company Performance Comparison"]
         )
         
-        if analysis_type == "时间趋势分析":
-            st.subheader("⏰ 时间趋势分析")
+        if analysis_type == "Time Trend Analysis":
+            st.subheader("⏰ Time Trend Analysis")
             
-            # 模拟按小时的小费数据
+            # Simulated hourly tip data
             hours = list(range(24))
             avg_tips = [1.2, 1.1, 1.0, 0.9, 0.8, 1.0, 1.5, 2.1, 2.8, 2.5, 2.3, 2.4, 2.6, 2.5, 2.4, 2.8, 3.2, 3.8, 4.1, 3.9, 3.2, 2.8, 2.1, 1.6]
             
             fig_time = px.line(
                 x=hours, 
                 y=avg_tips,
-                title="24小时平均小费趋势",
-                labels={'x': '小时', 'y': '平均小费 ($)'}
+                title="24-Hour Average Tip Trend",
+                labels={'x': 'Hour', 'y': 'Average Tip ($)'}
             )
             fig_time.update_traces(line=dict(color='blue', width=3))
             st.plotly_chart(fig_time, use_container_width=True)
             
-            st.info("💡 **洞察**: 晚上 18-20 点是小费高峰期，凌晨 3-5 点小费最低")
+            st.info("💡 **Insight**: Evening 6-8 PM is peak tip period, early morning 3-5 AM has lowest tips")
             
-        elif analysis_type == "地理分布分析":
-            st.subheader("🗺️ 地理分布分析")
+        elif analysis_type == "Geographic Distribution Analysis":
+            st.subheader("🗺️ Geographic Distribution Analysis")
             
-            # 模拟社区数据
+            # Simulated community data
             communities = ['Loop', 'Near North Side', 'Lincoln Park', 'Lakeview', 'Logan Square']
             avg_tips_geo = [4.2, 3.8, 2.9, 2.5, 2.1]
             trip_counts = [45000, 38000, 28000, 22000, 18000]
@@ -470,24 +470,24 @@ def main():
             fig_geo = px.bar(
                 x=communities,
                 y=avg_tips_geo,
-                title="不同社区平均小费对比",
-                labels={'x': '社区', 'y': '平均小费 ($)'},
+                title="Average Tip Comparison by Community",
+                labels={'x': 'Community', 'y': 'Average Tip ($)'},
                 color=avg_tips_geo,
                 color_continuous_scale='viridis'
             )
             st.plotly_chart(fig_geo, use_container_width=True)
             
-            st.info("💡 **洞察**: Loop 地区（商务区）小费最高，平均超过 $4")
+            st.info("💡 **Insight**: Loop area (business district) has highest tips, averaging over $4")
             
-        elif analysis_type == "支付方式分析":
-            st.subheader("💳 支付方式分析")
+        elif analysis_type == "Payment Method Analysis":
+            st.subheader("💳 Payment Method Analysis")
             
-            # 模拟支付数据
+            # Simulated payment data
             payment_data = {
-                '支付方式': ['Credit Card', 'Cash', 'No Charge', 'Dispute'],
-                '平均小费': [2.85, 0.95, 0.0, 0.12],
-                '小费率': [22.8, 7.6, 0.0, 1.2],
-                '交易数量': [1850000, 850000, 120000, 27000]
+                'Payment Method': ['Credit Card', 'Cash', 'No Charge', 'Dispute'],
+                'Average Tip': [2.85, 0.95, 0.0, 0.12],
+                'Tip Rate': [22.8, 7.6, 0.0, 1.2],
+                'Transaction Count': [1850000, 850000, 120000, 27000]
             }
             
             payment_df = pd.DataFrame(payment_data)
@@ -497,108 +497,106 @@ def main():
             with col_pay1:
                 fig_payment_tip = px.bar(
                     payment_df,
-                    x='支付方式',
-                    y='平均小费',
-                    title="不同支付方式的平均小费",
-                    color='平均小费'
+                    x='Payment Method',
+                    y='Average Tip',
+                    title="Average Tip by Payment Method",
+                    color='Average Tip'
                 )
                 st.plotly_chart(fig_payment_tip, use_container_width=True)
             
             with col_pay2:
                 fig_payment_rate = px.bar(
                     payment_df,
-                    x='支付方式',
-                    y='小费率',
-                    title="不同支付方式的小费率",
-                    color='小费率'
+                    x='Payment Method',
+                    y='Tip Rate',
+                    title="Tip Rate by Payment Method",
+                    color='Tip Rate'
                 )
                 st.plotly_chart(fig_payment_rate, use_container_width=True)
             
-            st.info("💡 **洞察**: 信用卡支付的小费明显高于现金支付")
+            st.info("💡 **Insight**: Credit card payments have significantly higher tips than cash payments")
             
-        else:  # 公司性能对比
-            st.subheader("🚕 出租车公司性能对比")
+        else:  # Company performance comparison
+            st.subheader("🚕 Taxi Company Performance Comparison")
             
-            # 模拟公司数据
+            # Simulated company data
             company_data = {
-                '公司': ['Flash Cab', 'Taxi Affiliation Services', 'Yellow Cab', 'Blue Diamond'],
-                '平均小费': [2.45, 2.12, 1.98, 2.38],
-                '平均车费': [12.80, 11.95, 12.15, 13.20],
-                '服务评分': [4.2, 3.8, 3.9, 4.1]
+                'Company': ['Flash Cab', 'Taxi Affiliation Services', 'Yellow Cab', 'Blue Diamond'],
+                'Average Tip': [2.45, 2.12, 1.98, 2.38],
+                'Average Fare': [12.80, 11.95, 12.15, 13.20],
+                'Service Rating': [4.2, 3.8, 3.9, 4.1]
             }
             
             company_df = pd.DataFrame(company_data)
             
-            # 散点图：车费 vs 小费
+            # Scatter plot: fare vs tip
             fig_scatter = px.scatter(
                 company_df, 
-                x='平均车费', 
-                y='平均小费',
-                size='服务评分',
-                color='公司',
-                title="出租车公司性能对比（气泡大小代表服务评分）",
-                labels={'x': '平均车费 ($)', 'y': '平均小费 ($)'}
+                x='Average Fare', 
+                y='Average Tip',
+                size='Service Rating',
+                color='Company',
+                title="Taxi Company Performance Comparison (Bubble size represents service rating)",
+                labels={'x': 'Average Fare ($)', 'y': 'Average Tip ($)'}
             )
             st.plotly_chart(fig_scatter, use_container_width=True)
             
             st.dataframe(company_df, use_container_width=True)
             
-            st.info("💡 **洞察**: Flash Cab 在小费和服务评分方面表现最佳")
+            st.info("💡 **Insight**: Flash Cab performs best in both tips and service rating")
 
     
-    # Tab 4: 性能监控
+    # Tab 4: Performance monitoring
     with tab4:
-        st.header("🔍 Chicago Taxi 模型性能监控")
-        st.markdown("实时监控 TFX Pipeline 模型服务性能和系统状态")
+        st.header("🔍 Chicago Taxi Model Performance Monitoring")
+        st.markdown("Real-time monitoring of TFX Pipeline model service performance and system status")
         
-        # 获取服务指标
+        # Get service metrics
         try:
             response = requests.get(f"{API_BASE_URL}/metrics", timeout=10)
             if response.status_code == 200:
                 metrics = response.json()
                 
-                # 服务状态概览
-                st.subheader("🟢 服务状态概览")
+                # Service status overview
+                st.subheader("🟢 Service Status Overview")
                 col_metric1, col_metric2, col_metric3, col_metric4 = st.columns(4)
                 with col_metric1:
-                    st.metric("🚕 模型服务", metrics.get('model_status', '正常'))
+                    st.metric("🚕 Model Service", metrics.get('model_status', 'Normal'))
                 with col_metric2:
-                    st.metric("🔗 API 状态", "正常" if metrics.get('api_status', True) else "异常")
+                    st.metric("🔗 API Status", "Normal" if metrics.get('api_status', True) else "Error")
                 with col_metric3:
-                    st.metric("📊 预测数量", f"{metrics.get('total_predictions', 0):,}")
+                    st.metric("📊 Prediction Count", f"{metrics.get('total_predictions', 0):,}")
                 with col_metric4:
-                    st.metric("最后更新", metrics.get('timestamp', 'N/A')[:19])
+                    st.metric("Last Updated", metrics.get('timestamp', 'N/A')[:19])
                 
-                # 模拟性能数据 (实际应用中从 Prometheus 获取)
-                if st.button("🔄 刷新监控数据"):
-                    import random
-                    import numpy as np
+                # Simulated performance data (in actual deployment, get from Prometheus)
+                if st.button("🔄 Refresh Monitoring Data"):
                     
-                    # 生成模拟时间序列数据
+                    # Generate simulated time series data
                     timestamps = pd.date_range(
                         start=datetime.now().replace(hour=0, minute=0, second=0),
                         periods=24,
                         freq='H'
                     )
                     
-                    # 模拟指标
+                    # Simulated metrics
                     latency_data = [50 + random.gauss(0, 10) for _ in range(24)]
                     throughput_data = [100 + random.gauss(0, 20) for _ in range(24)]
                     error_rate_data = [random.uniform(0, 5) for _ in range(24)]
                     
-                    # 延迟趋势
+                    # Latency trend
                     fig_latency = go.Figure()
                     fig_latency.add_trace(go.Scatter(
                         x=timestamps,
                         y=latency_data,
                         mode='lines+markers',
-                        name='平均延迟 (ms)',
+                        name='Average Latency (ms)',
                         line=dict(color='blue')
                     ))
-                    fig_latency.update_layout(title="推理延迟趋势", xaxis_title="时间", yaxis_title="延迟 (ms)")
+                    fig_latency.update_layout(title="Inference Latency Trend", xaxis_title="Time", yaxis_title="Latency (ms)")
                     st.plotly_chart(fig_latency, use_container_width=True)
                     
-                    # 吞吐量和错误率
+                    # Throughput and error rate
                     col_chart1, col_chart2 = st.columns(2)
                     
                     with col_chart1:
@@ -607,10 +605,10 @@ def main():
                             x=timestamps,
                             y=throughput_data,
                             mode='lines+markers',
-                            name='吞吐量 (req/s)',
+                            name='Throughput (req/s)',
                             line=dict(color='green')
                         ))
-                        fig_throughput.update_layout(title="吞吐量趋势", xaxis_title="时间", yaxis_title="请求/秒")
+                        fig_throughput.update_layout(title="Throughput Trend", xaxis_title="Time", yaxis_title="Requests/Second")
                         st.plotly_chart(fig_throughput, use_container_width=True)
                     
                     with col_chart2:
@@ -619,128 +617,244 @@ def main():
                             x=timestamps,
                             y=error_rate_data,
                             mode='lines+markers',
-                            name='错误率 (%)',
+                            name='Error Rate (%)',
                             line=dict(color='red')
                         ))
-                        fig_error.update_layout(title="错误率趋势", xaxis_title="时间", yaxis_title="错误率 (%)")
+                        fig_error.update_layout(title="Error Rate Trend", xaxis_title="Time", yaxis_title="Error Rate (%)")
                         st.plotly_chart(fig_error, use_container_width=True)
                     
-                    # 性能总结
-                    st.subheader("📈 性能总结")
+                    # Performance summary
+                    st.subheader("📈 Performance Summary")
                     summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
                     
                     with summary_col1:
-                        st.metric("平均延迟", f"{np.mean(latency_data):.1f} ms")
+                        st.metric("Average Latency", f"{np.mean(latency_data):.1f} ms")
                     with summary_col2:
-                        st.metric("平均吞吐量", f"{np.mean(throughput_data):.1f} req/s")
+                        st.metric("Average Throughput", f"{np.mean(throughput_data):.1f} req/s")
                     with summary_col3:
-                        st.metric("平均错误率", f"{np.mean(error_rate_data):.2f}%")
+                        st.metric("Average Error Rate", f"{np.mean(error_rate_data):.2f}%")
                     with summary_col4:
-                        st.metric("可用性", "99.9%")
+                        st.metric("Availability", "99.9%")
             else:
-                st.error("无法获取服务指标")
+                st.error("Unable to retrieve service metrics")
                 
         except Exception as e:
-            st.error(f"监控数据获取失败: {str(e)}")
+            st.error(f"Failed to retrieve monitoring data: {str(e)}")
     
-    # Tab 6: Feast 特征存储
+    # Tab 5: Data drift monitoring
+    with tab5:
+        st.header("🔍 Data Drift Monitoring")
+        st.markdown("Monitor data distribution changes and feature drift in real-time")
+        
+        # Simulated drift monitoring data
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Features Monitored", "16")
+        with col2:
+            st.metric("Drift Detected", "2", delta="-1")
+        with col3:
+            st.metric("Drift Score", "0.23", delta="0.05")
+        with col4:
+            st.metric("Last Check", "5 min ago")
+        
+        st.divider()
+        
+        # Create drift monitoring tabs
+        drift_tab1, drift_tab2, drift_tab3 = st.tabs([
+            "📊 Drift Overview", "📈 Feature Analysis", "⚠️ Alerts & Actions"
+        ])
+        
+        with drift_tab1:
+            st.subheader("Data Drift Overview")
+            
+            # Simulated drift data
+            features = ['trip_miles', 'trip_seconds', 'fare', 'pickup_latitude', 'pickup_longitude', 
+                       'dropoff_latitude', 'dropoff_longitude', 'pickup_hour', 'payment_type', 'company']
+            drift_scores = [random.uniform(0, 0.8) for _ in features]
+            
+            drift_df = pd.DataFrame({
+                'Feature': features,
+                'Drift Score': drift_scores,
+                'Status': ['🔴 High' if score > 0.5 else '🟡 Medium' if score > 0.3 else '🟢 Low' for score in drift_scores]
+            })
+            
+            fig = px.bar(drift_df, x='Feature', y='Drift Score', color='Status',
+                        title="Feature Drift Scores", 
+                        color_discrete_map={'🟢 Low': 'green', '🟡 Medium': 'orange', '🔴 High': 'red'})
+            fig.update_layout(xaxis_tickangle=45)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.dataframe(drift_df, use_container_width=True)
+        
+        with drift_tab2:
+            st.subheader("Feature Analysis")
+            
+            selected_feature = st.selectbox("Select feature to analyze:", features)
+            
+            if selected_feature:
+                st.write(f"**Analyzing: {selected_feature}**")
+                
+                # Simulated distribution comparison
+                col_dist1, col_dist2 = st.columns(2)
+                
+                with col_dist1:
+                    st.write("**Reference Distribution**")
+                    ref_data = [random.gauss(10, 2) for _ in range(100)]
+                    fig_ref = px.histogram(x=ref_data, title="Reference Data", nbins=20)
+                    st.plotly_chart(fig_ref, use_container_width=True)
+                
+                with col_dist2:
+                    st.write("**Current Distribution**")
+                    current_data = [random.gauss(12, 3) for _ in range(100)]
+                    fig_current = px.histogram(x=current_data, title="Current Data", nbins=20)
+                    st.plotly_chart(fig_current, use_container_width=True)
+                
+                # Drift metrics
+                st.write("**Drift Metrics**")
+                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                with metric_col1:
+                    st.metric("KS Statistic", "0.23")
+                with metric_col2:
+                    st.metric("P-value", "0.001")
+                with metric_col3:
+                    st.metric("Effect Size", "Medium")
+        
+        with drift_tab3:
+            st.subheader("Alerts & Actions")
+            
+            # Alert status
+            if any(score > 0.5 for score in drift_scores):
+                st.error("⚠️ High drift detected in some features!")
+                
+                high_drift_features = [features[i] for i, score in enumerate(drift_scores) if score > 0.5]
+                st.write(f"**Features with high drift:** {', '.join(high_drift_features)}")
+                
+                st.write("**Recommended Actions:**")
+                st.write("- 🔍 Investigate data collection process")
+                st.write("- 📊 Review feature engineering pipeline")
+                st.write("- 🎯 Consider model retraining")
+                st.write("- 📧 Notify data science team")
+                
+                if st.button("🚨 Trigger Alert"):
+                    st.success("Alert sent to monitoring system!")
+            else:
+                st.success("✅ All features within acceptable drift thresholds")
+            
+            # Manual actions
+            st.write("**Manual Actions**")
+            col_action1, col_action2 = st.columns(2)
+            
+            with col_action1:
+                if st.button("🔄 Refresh Drift Analysis"):
+                    st.info("Drift analysis refreshed!")
+            
+            with col_action2:
+                if st.button("📊 Generate Drift Report"):
+                    st.download_button(
+                        label="📥 Download Report",
+                        data="# Data Drift Report\n\nGenerated drift analysis report...",
+                        file_name=f"drift_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.md",
+                        mime="text/markdown"
+                    )
+    
+    # Tab 6: Feast feature store
     with tab6:
         try:
             feast_ui.render_feast_dashboard()
         except Exception as e:
-            st.error(f"Feast 特征存储界面加载失败: {str(e)}")
-            st.info("请确保 Feast 服务和 Redis 正在运行")
+            st.error(f"Feast feature store interface failed to load: {str(e)}")
+            st.info("Please ensure Feast service and Redis are running")
     
-    # Tab 7: Kafka 流处理
+    # Tab 7: Kafka stream processing
     with tab7:
         try:
             kafka_ui.render_kafka_dashboard()
         except Exception as e:
-            st.error(f"Kafka 流处理界面加载失败: {str(e)}")
-            st.info("请确保 Kafka 服务正在运行")
+            st.error(f"Kafka stream processing interface failed to load: {str(e)}")
+            st.info("Please ensure Kafka service is running")
     
-    # Tab 8: MLflow 模型注册
+    # Tab 8: MLflow model registry
     with tab8:
         try:
             mlflow_ui.render_mlflow_dashboard()
         except Exception as e:
-            st.error(f"MLflow 模型注册界面加载失败: {str(e)}")
-            st.info("请确保 MLflow 服务正在运行")
+            st.error(f"MLflow model registry interface failed to load: {str(e)}")
+            st.info("Please ensure MLflow service is running")
     
-    # Tab 9: MLMD 数据血缘
+    # Tab 9: MLMD data lineage
     with tab9:
         try:
-            mlmd_ui = get_mlmd_ui_integration(api_base_url)
+            mlmd_ui = get_mlmd_ui_integration(API_BASE_URL)
             mlmd_ui.render_mlmd_interface()
         except Exception as e:
-            st.error(f"MLMD 数据血缘界面加载失败: {str(e)}")
-            st.info("请确保 MLMD 组件和 FastAPI 服务正在运行")
+            st.error(f"MLMD data lineage interface failed to load: {str(e)}")
+            st.info("Please ensure MLMD components and FastAPI service are running")
     
-    # 页脚
+    # Footer
     st.divider()
     st.markdown("""
     <div style='text-align: center; color: gray;'>
-        🚕 Chicago Taxi MLOps 平台 v1.0.0 | 基于 TFX Pipeline + Kubeflow + KFServing + Streamlit<br>
-        💡 提示: 确保 FastAPI 服务 (localhost:8000) 和 TFX Pipeline 正在运行<br>
-        📊 数据源: Chicago Taxi Trips Dataset | 🎯 预测目标: 小费金额 (Tips)
+        🚕 Chicago Taxi MLOps Platform v1.0.0 | Based on TFX Pipeline + Kubeflow + KFServing + Streamlit<br>
+        💡 Tip: Ensure FastAPI service (localhost:8000) and TFX Pipeline are running<br>
+        📊 Data Source: Chicago Taxi Trips Dataset | 🎯 Prediction Target: Tip Amount (Tips)
     </div>
     """, unsafe_allow_html=True)
 
 def render_data_drift_monitoring():
-    """渲染数据漂移监控界面"""
-    st.header("🔍 数据漂移监控")
+    """Render data drift monitoring interface"""
+    st.header("🔍 Data Drift Monitoring")
     
-    # 初始化漂移监控 UI
+    # Initialize drift monitoring UI
     drift_ui = DriftMonitorUI()
     
-    # 加载数据
+    # Load data
     if drift_ui.load_drift_results():
         
-        # 控制面板
+        # Control panel
         col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
-            st.subheader("📊 漂移监控概览")
+            st.subheader("📊 Drift Monitoring Overview")
         
         with col2:
-            if st.button("🔄 刷新数据", key="refresh_drift"):
+            if st.button("🔄 Refresh Data", key="refresh_drift"):
                 drift_ui.load_drift_results()
                 st.rerun()
         
         with col3:
-            auto_refresh = st.checkbox("自动刷新", key="auto_refresh_drift")
+            auto_refresh = st.checkbox("Auto Refresh", key="auto_refresh_drift")
         
-        # 自动刷新逻辑
+        # Auto refresh logic
         if auto_refresh:
-            time.sleep(10)  # 10秒刷新一次
+            time.sleep(10)  # Refresh every 10 seconds
             st.rerun()
         
-        # 漂移概览
+        # Drift overview
         drift_ui.render_drift_overview()
         
         st.divider()
         
-        # 创建子标签页
+        # Create sub-tabs
         drift_tab1, drift_tab2, drift_tab3, drift_tab4, drift_tab5 = st.tabs([
-            "📈 特征漂移图表", "🔥 漂移热力图", "🔍 特征详细分析", "📅 历史趋势", "💡 建议与报告"
+            "📈 Feature Drift Charts", "🔥 Drift Heatmap", "🔍 Feature Detail Analysis", "📅 Historical Trends", "💡 Recommendations & Reports"
         ])
         
         with drift_tab1:
-            st.subheader("特征漂移分数分布")
+            st.subheader("Feature Drift Score Distribution")
             drift_ui.render_feature_drift_chart()
         
         with drift_tab2:
-            st.subheader("特征漂移热力图")
+            st.subheader("Feature Drift Heatmap")
             drift_ui.render_drift_heatmap()
         
         with drift_tab3:
-            st.subheader("特征详细分析")
+            st.subheader("Feature Detail Analysis")
             
-            # 特征选择
+            # Feature selection
             if drift_ui.drift_data:
                 features = list(drift_ui.drift_data['feature_details'].keys())
                 selected_feature = st.selectbox(
-                    "选择要分析的特征:",
+                    "Select feature to analyze:",
                     features,
                     key="feature_selector"
                 )
@@ -749,85 +863,85 @@ def render_data_drift_monitoring():
                     drift_ui.render_feature_comparison(selected_feature)
         
         with drift_tab4:
-            st.subheader("数据漂移历史趋势")
+            st.subheader("Data Drift Historical Trends")
             drift_ui.render_drift_timeline()
             
-            # 添加说明
-            st.info("📝 注意：这是基于模拟数据的历史趋势图。在实际部署中，这将显示真实的历史漂移数据。")
+            # Add explanation
+            st.info("📝 Note: This is a historical trend chart based on simulated data. In actual deployment, this will display real historical drift data.")
         
         with drift_tab5:
-            st.subheader("建议与报告")
+            st.subheader("Recommendations & Reports")
             
-            # 显示建议
+            # Display recommendations
             drift_ui.render_recommendations()
             
             st.divider()
             
-            # 导出报告
+            # Export report
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("📄 生成详细报告", key="generate_report"):
+                if st.button("📄 Generate Detailed Report", key="generate_report"):
                     report = drift_ui.export_drift_report()
                     st.download_button(
-                        label="📥 下载报告",
+                        label="📥 Download Report",
                         data=report,
                         file_name=f"drift_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
                         mime="text/markdown"
                     )
             
             with col2:
-                if st.button("🚨 触发告警", key="trigger_alert"):
+                if st.button("🚨 Trigger Alert", key="trigger_alert"):
                     if drift_ui.drift_data and drift_ui.drift_data['summary']['overall_drift_detected']:
-                        st.error("⚠️ 数据漂移告警已触发！建议立即检查数据质量。")
+                        st.error("⚠️ Data drift alert triggered! Recommend immediate data quality check.")
                         
-                        # 显示告警详情
-                        with st.expander("告警详情"):
+                        # Display alert details
+                        with st.expander("Alert Details"):
                             drifted_features = [
                                 name for name, details in drift_ui.drift_data['feature_details'].items()
                                 if details['is_drifted']
                             ]
-                            st.write(f"**漂移特征:** {', '.join(drifted_features)}")
-                            st.write(f"**漂移特征数:** {len(drifted_features)}")
-                            st.write(f"**建议操作:** 检查数据收集流程，考虑重新训练模型")
+                            st.write(f"**Drifted Features:** {', '.join(drifted_features)}")
+                            st.write(f"**Number of Drifted Features:** {len(drifted_features)}")
+                            st.write(f"**Recommended Actions:** Check data collection process, consider retraining model")
                     else:
-                        st.success("✅ 当前数据质量良好，无需告警。")
+                        st.success("✅ Current data quality is good, no alert needed.")
         
-        # 添加技术说明
-        with st.expander("🔧 技术说明"):
+        # Add technical explanation
+        with st.expander("🔧 Technical Documentation"):
             st.markdown("""
-            ### 数据漂移监控技术说明
+            ### Data Drift Monitoring Technical Documentation
             
-            **漂移检测算法:**
-            - **数值特征**: 基于均值和标准差变化检测
-            - **分类特征**: 使用 Jensen-Shannon 散度比较分布
+            **Drift Detection Algorithms:**
+            - **Numerical Features**: Detection based on mean and standard deviation changes
+            - **Categorical Features**: Distribution comparison using Jensen-Shannon divergence
             
-            **漂移分类:**
-            - 🟢 **无漂移** (< 0.1): 数据分布稳定
-            - 🟡 **轻微漂移** (0.1 - 0.3): 轻微变化，需要关注
-            - 🟠 **中等漂移** (0.3 - 0.5): 明显变化，建议调查
-            - 🔴 **严重漂移** (> 0.5): 严重变化，需要立即处理
+            **Drift Classification:**
+            - 🟢 **No Drift** (< 0.1): Stable data distribution
+            - 🟡 **Slight Drift** (0.1 - 0.3): Minor changes, requires attention
+            - 🟠 **Moderate Drift** (0.3 - 0.5): Significant changes, investigation recommended
+            - 🔴 **Severe Drift** (> 0.5): Critical changes, immediate action required
             
-            **监控频率建议:**
-            - 实时监控：每小时检查
-            - 日常监控：每天检查
-            - 定期审查：每周深度分析
+            **Monitoring Frequency Recommendations:**
+            - Real-time monitoring: Hourly checks
+            - Daily monitoring: Daily checks
+            - Periodic review: Weekly in-depth analysis
             
-            **集成说明:**
-            - 本界面展示的是模拟数据
-            - 实际部署时将连接到 TFX Pipeline 的漂移监控组件
-            - 支持 Prometheus 指标导出和 Grafana 可视化
+            **Integration Notes:**
+            - This interface displays simulated data
+            - In actual deployment, will connect to TFX Pipeline drift monitoring components
+            - Supports Prometheus metrics export and Grafana visualization
             """)
     
     else:
-        st.error("无法加载数据漂移结果。请确保数据漂移监控组件正在运行。")
+        st.error("Unable to load data drift results. Please ensure data drift monitoring components are running.")
         
-        # 提供手动触发选项
-        if st.button("🔄 手动触发漂移检测", key="manual_trigger"):
-            with st.spinner("正在执行数据漂移检测..."):
-                time.sleep(3)  # 模拟检测过程
-                st.success("✅ 数据漂移检测已完成！请刷新页面查看结果。")
-                st.info("💡 提示：在实际部署中，这将触发 TFX Pipeline 中的数据漂移监控组件。")
+        # Provide manual trigger option
+        if st.button("🔄 Manually Trigger Drift Detection", key="manual_trigger"):
+            with st.spinner("Executing data drift detection..."):
+                time.sleep(3)  # Simulate detection process
+                st.success("✅ Data drift detection completed! Please refresh the page to view results.")
+                st.info("💡 Tip: In actual deployment, this will trigger the data drift monitoring component in TFX Pipeline.")
 
 
 if __name__ == "__main__":

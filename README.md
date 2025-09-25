@@ -15,6 +15,28 @@ A complete MLOps platform built on existing `tfx_pipeline` code, integrating Kub
 - **Frontend**: Streamlit
 - **API**: FastAPI
 
+## 🚀 quick start (local)
+
+### requirements
+- Python 3.9+
+- macOS 
+- 8GB+ RAM
+
+### start
+```bash
+# 1. clone repo
+git clone <your-repo>
+cd MLops_test
+
+# 2. start
+./quick_start.sh
+```
+
+visit：
+- **Streamlit UI**: http://localhost:8501
+- **FastAPI**: http://localhost:8000/docs
+- **health**: http://localhost:8000/health
+
 ## ⚡ Apache Beam Execution Engine
 
 TFX Pipeline uses **Apache Beam** as the underlying distributed execution engine, supporting multiple runtime modes:
@@ -44,53 +66,51 @@ beam_pipeline_args = [
 ]
 ```
 
-## 🚀 One-Click Deployment
+## 🔧 manual install
 
-### Prerequisites
 
-1. **macOS 10.15+** (16GB+ RAM recommended)
-2. **Docker Desktop** (with Kubernetes enabled)
-3. **Python 3.8+**
-4. **kubectl** configured
-
-### Quick Start
-
+### 1. create virtual environment
 ```bash
-# 1. One-click deploy complete platform
-./scripts/deploy_complete_mlops.sh
-
-# 2. Access after deployment completion
-# Streamlit UI: http://localhost:8501
-# FastAPI Documentation: http://localhost:8000/docs
+python3 -m venv mlops-env
+source mlops-env/bin/activate
+pip install --upgrade pip
 ```
 
-### Manual Deployment Steps
+### 2. dependencies
+```bash
+pip install -r requirements-local.txt
+```
 
-1. **Create virtual environment and install dependencies**
-   ```bash
-   ./setup_environment.sh
-   ```
+### 3. start service
+```bash
+# start FastAPI backend (terminal 1)
+uvicorn api.main_with_feast:app --host 0.0.0.0 --port 8000 --reload
 
-2. **Deploy Kubernetes infrastructure**
-   ```bash
-   ./scripts/deploy_kfserving.sh
-   ```
+# start Streamlit frontend (terminal 2)
+streamlit run ui/streamlit_app.py --server.port 8501 --server.headless true
+```
 
-3. **Start application services**
-   ```bash
-   # Activate environment
-   source mlops-env/bin/activate
-   
-   # Start FastAPI (simplified version)
-   python -c "
-   import uvicorn
-   from api.simple_main import app
-   uvicorn.run(app, host='0.0.0.0', port=8000)
-   " &
-   
-   # Start Streamlit
-   streamlit run ui/streamlit_app.py --server.port 8501 &
-   ```
+### 4. validation
+```bash
+# check API health
+curl http://localhost:8000/health
+
+# test interface
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "trip_miles": 5.2,
+    "trip_seconds": 1200,
+    "pickup_latitude": 41.8781,
+    "pickup_longitude": -87.6298,
+    "dropoff_latitude": 41.8881,
+    "dropoff_longitude": -87.6198,
+    "pickup_hour": 8,
+    "pickup_day_of_week": 1,
+    "passenger_count": 2,
+    "company": "Yellow Cab"
+  }'
+```
 
 ## 📁 Project Structure
 
@@ -106,8 +126,6 @@ beam_pipeline_args = [
 │   ├── kfserving_deployer.py
 │   └── model_monitoring.py
 ├── api/                    # FastAPI backend
-│   ├── main.py
-│   └── inference_client.py
 ├── ui/                     # Streamlit frontend
 │   └── streamlit_app.py
 ├── streaming/              # Kafka stream processing

@@ -1,0 +1,28 @@
+# 本地运行简化依赖
+# 只包含运行 Streamlit UI 和 FastAPI 所需的核心包
+
+# Web Framework
+fastapi>=0.68.0
+uvicorn[standard]>=0.15.0
+streamlit>=1.25.0
+
+# ML and Data Processing
+pandas>=1.5.0
+numpy>=1.21.0,<1.25.0
+scikit-learn>=1.1.0
+
+# Visualization
+plotly>=5.0.0
+
+# HTTP requests
+requests>=2.25.0
+
+# Utilities
+python-dotenv>=0.19.0
+tqdm>=4.60.0
+
+# Optional: Redis for Feast simulation
+redis>=4.0.0
+
+# Optional: Kafka for stream processing simulation
+kafka-python>=2.0.0

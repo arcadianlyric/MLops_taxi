@@ -1,90 +1,71 @@
 #!/bin/bash
-# 快速启动 Chicago Taxi MLOps 平台
+# 快速启动 Chicago Taxi MLOps 平台 - 简化版本
 
 set -e
 
 echo "🚀 启动 Chicago Taxi MLOps 平台..."
 
-# 检查虚拟环境
+# 检查 Python 版本
+echo "📋 检查 Python 版本..."
+python3 --version
+
+# 创建虚拟环境（如果不存在）
 if [ ! -d "mlops-env" ]; then
-    echo "❌ 虚拟环境不存在，请先运行: ./setup_environment.sh"
-    exit 1
+    echo "🐍 创建虚拟环境 'mlops-env'..."
+    python3 -m venv mlops-env
 fi
 
 # 激活虚拟环境
 echo "📦 激活虚拟环境..."
 source mlops-env/bin/activate
 
+# 升级 pip
+echo "⬆️  升级 pip..."
+pip install --upgrade pip
+
+# 安装简化依赖
+echo "📦 安装依赖..."
+if [ ! -f "requirements-local.txt" ]; then
+    echo "❌ requirements-local.txt 文件不存在"
+    echo "正在创建简化的依赖文件..."
+    cat > requirements-local.txt << EOF
+# 本地运行简化依赖
+fastapi>=0.68.0
+uvicorn[standard]>=0.15.0
+streamlit>=1.25.0
+pandas>=1.5.0
+numpy>=1.21.0,<1.25.0
+scikit-learn>=1.1.0
+plotly>=5.0.0
+requests>=2.25.0
+python-dotenv>=0.19.0
+tqdm>=4.60.0
+redis>=4.0.0
+kafka-python>=2.0.0
+EOF
+fi
+
+pip install -r requirements-local.txt
+
 # 检查并停止现有服务
 echo "🔍 检查现有服务..."
 pkill -f "uvicorn.*8000" 2>/dev/null || true
 pkill -f "streamlit.*8501" 2>/dev/null || true
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+lsof -ti:8501 | xargs kill -9 2>/dev/null || true
 
 # 等待端口释放
-sleep 2
-
-# 启动 Feast Feature Store 服务
-echo "🍃 启动 Feast Feature Store 服务..."
-if command -v redis-server &> /dev/null; then
-    # 启动 Redis 服务器
-    if ! pgrep -x "redis-server" > /dev/null; then
-        echo "🔴 启动 Redis 服务器..."
-        redis-server --daemonize yes --port 6379
-        sleep 2
-        echo "✅ Redis 服务器已启动"
-    else
-        echo "✅ Redis 服务器已在运行"
-    fi
-    
-    # 检查 Redis 连接
-    if redis-cli ping | grep -q "PONG"; then
-        echo "✅ Redis 连接成功"
-    else
-        echo "⚠️  Redis 连接失败，Feast 将使用模拟模式"
-    fi
-    
-    # 初始化 Feast 仓库（如果需要）
-    if [ ! -f "feast/data/registry.db" ]; then
-        echo "🏗️  初始化 Feast 仓库..."
-        cd feast
-        if command -v feast &> /dev/null; then
-            feast apply
-            echo "✅ Feast 仓库初始化完成"
-        else
-            echo "⚠️  Feast 未安装，将使用模拟模式"
-        fi
-        cd ..
-    else
-        echo "✅ Feast 仓库已存在"
-    fi
-    
-    # 启动 Feast UI 服务器（后台运行）
-    if command -v feast &> /dev/null && ! pgrep -f "feast ui" > /dev/null; then
-        echo "🌐 启动 Feast UI 服务器 (端口 8888)..."
-        cd feast
-        nohup feast ui --host 0.0.0.0 --port 8888 > ../logs/feast_ui.log 2>&1 &
-        cd ..
-        sleep 2
-        echo "✅ Feast UI 已启动: http://localhost:8888"
-    fi
-else
-    echo "⚠️  Redis 未安装，Feast 将使用模拟模式"
-    echo "💡 要安装 Redis: brew install redis (macOS) 或 apt-get install redis-server (Linux)"
-fi
+sleep 3
 
 # 启动 FastAPI 服务
 echo "🌐 启动 FastAPI 服务 (端口 8000)..."
-python -c "
-import uvicorn
-from api.main_with_feast import app
-uvicorn.run(app, host='0.0.0.0', port=8000)
-" &
+uvicorn api.main_with_feast:app --host 0.0.0.0 --port 8000 --reload &
 
 FASTAPI_PID=$!
 echo "FastAPI PID: $FASTAPI_PID"
 
 # 等待 FastAPI 启动
-sleep 3
+sleep 5
 
 # 启动 Streamlit 服务
 echo "🎨 启动 Streamlit UI (端口 8501)..."
@@ -107,38 +88,38 @@ fi
 if curl -s http://localhost:8501 > /dev/null; then
     echo "✅ Streamlit 服务正常运行"
 else
-    echo "❌ Streamlit 服务启动失败"
+    echo "❌ Streamlit 服务启动失败，可能端口被占用"
 fi
 
 # 显示访问信息
-echo ""
 echo ""
 echo "🎉 MLOps 平台启动完成!"
 echo ""
 echo "📊 服务状态:"
 echo "   - FastAPI API: ✅ 运行在 http://localhost:8000"
 echo "   - Streamlit UI: ✅ 运行在 http://localhost:8501"
-if command -v redis-server &> /dev/null && pgrep -x "redis-server" > /dev/null; then
-    echo "   - Redis 服务器: ✅ 运行在 localhost:6379"
-else
-    echo "   - Redis 服务器: ⚠️  未运行 (使用模拟模式)"
-fi
-if command -v feast &> /dev/null && pgrep -f "feast ui" > /dev/null; then
-    echo "   - Feast UI: ✅ 运行在 http://localhost:8888"
-else
-    echo "   - Feast UI: ⚠️  未运行 (使用模拟模式)"
-fi
+echo "   - API 文档: ✅ http://localhost:8000/docs"
+echo ""
+echo "🎯 功能特性:"
+echo "   - 🚕 出租车小费预测 (模拟模式)"
+echo "   - 📊 批量预测和数据分析"
+echo "   - 🍃 Feast 特征存储 (模拟模式)"
+echo "   - 🚀 Kafka 流处理 (模拟模式)"
+echo "   - 🎯 MLflow 模型管理 (模拟模式)"
+echo "   - 🔗 MLMD 数据血缘 (模拟模式)"
 echo ""
 echo "💡 使用提示:"
 echo "   - 访问 Streamlit UI: http://localhost:8501"
 echo "   - 查看 API 文档: http://localhost:8000/docs"
-echo "   - Feast 特征存储: http://localhost:8888"
 echo "   - 健康检查: curl http://localhost:8000/health"
+echo "   - 测试预测: curl -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d '{...}'"
 echo ""
 echo "🛑 停止服务:"
-echo "   - 按 Ctrl+C 停止"
-echo "   - 或运行: pkill -f 'uvicorn.*8000' && pkill -f 'streamlit.*8501' && pkill -f 'feast ui' && redis-cli shutdown"
+echo "   - 按 Ctrl+C 停止当前脚本"
+echo "   - 或运行: pkill -f 'uvicorn.*8000' && pkill -f 'streamlit.*8501'"
 echo ""
 echo "📝 服务进程 ID:"
-echo "  FastAPI PID: $FASTAPI_PID"
-echo "  Streamlit PID: $STREAMLIT_PID"
+echo "   - FastAPI PID: $FASTAPI_PID"
+echo "   - Streamlit PID: $STREAMLIT_PID"
+echo ""
+echo "🎊 现在可以开始使用 MLOps 平台了！"

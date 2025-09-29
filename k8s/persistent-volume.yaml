@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: tfx-pipeline-pv
+  namespace: tfx-pipeline
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: /tmp/tfx-pipeline-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tfx-pipeline-pvc
+  namespace: tfx-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-storage

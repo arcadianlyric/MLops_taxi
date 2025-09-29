@@ -1,15 +1,21 @@
-# Use the official TFX image which comes with TFX, TensorFlow, and Beam pre-installed
-FROM --platform=linux/amd64 tensorflow/tfx:1.12.0
+# Use a modern, slim Python base image for better compatibility and smaller size
+FROM python:3.9-slim
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the entire project into the container
-COPY . /app/
+# Copy the requirements file first to leverage Docker layer caching
+# This prevents re-installing dependencies on every code change
+COPY app-requirements.txt ./requirements.txt
 
-# Install additional dependencies from requirements.txt
-# The base image already has tfx, tensorflow, apache-beam, and ml-metadata
+# Install all dependencies from the requirements file
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Set the entrypoint to be a shell
-ENTRYPOINT ["/bin/bash"]
+# Copy the rest of the application code into the container
+COPY . .
+
+# Expose the ports the application will run on
+EXPOSE 8000
+EXPOSE 8501
+
+# No entrypoint is needed, as the command will be specified in the Kubernetes deployment manifest

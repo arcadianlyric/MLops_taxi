@@ -13,6 +13,7 @@
 # limitations under the License.
 """Chicago taxi example using TFX."""
 
+import datetime
 import os
 from typing import List
 
@@ -58,11 +59,9 @@ _metadata_path = os.path.join(_tfx_root, 'metadata', _pipeline_name,
                               'metadata.db')
 
 # Pipeline arguments for Beam powered Components.
+# Using a simpler, single-process runner to improve stability under emulation.
 _beam_pipeline_args = [
-    '--direct_running_mode=multi_processing',
-    # 0 means auto-detect based on on the number of CPUs available
-    # during execution time.
-    '--direct_num_workers=0',
+    '--runner=DirectRunner',
 ]
 
 
@@ -173,9 +172,13 @@ def _create_pipeline(pipeline_name: str, pipeline_root: str, data_root: str,
 if __name__ == '__main__':
   absl.logging.set_verbosity(absl.logging.INFO)
 
+  # Generate a unique run ID for this pipeline execution.
+  run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+  pipeline_name_with_run_id = f"{_pipeline_name}-{run_id}"
+
   BeamDagRunner().run(
       _create_pipeline(
-          pipeline_name=_pipeline_name,
+          pipeline_name=pipeline_name_with_run_id,
           pipeline_root=_pipeline_root,
           data_root=_data_root,
           module_file=_module_file,

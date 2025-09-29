@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-service
+  namespace: mlops-system
+spec:
+  selector:
+    app: fastapi
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-service
+  namespace: mlops-system
+spec:
+  selector:
+    app: streamlit
+  ports:
+    - port: 8501
+      targetPort: 8501
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi
+  namespace: mlops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastapi
+  template:
+    metadata:
+      labels:
+        app: fastapi
+    spec:
+      containers:
+      - name: fastapi
+        # This image is built locally within the Minikube Docker environment
+        image: mlops-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        command: ["uvicorn"]
+        args: ["api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-service:9092"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow-service:5000"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit
+  namespace: mlops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamlit
+  template:
+    metadata:
+      labels:
+        app: streamlit
+    spec:
+      containers:
+      - name: streamlit
+        # This image is built locally within the Minikube Docker environment
+        image: mlops-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8501
+        command: ["streamlit"]
+        args: ["run", "ui/streamlit_app.py", "--server.port", "8501", "--server.headless", "true", "--server.address", "0.0.0.0"]
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: FASTAPI_URL
+          value: "http://fastapi-service:8000"

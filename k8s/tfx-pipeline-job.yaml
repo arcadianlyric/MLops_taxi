@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tfx-pipeline-job
+  namespace: tfx-pipeline
+  labels:
+    app: tfx-pipeline
+    component: pipeline-runner
+spec:
+  template:
+    metadata:
+      labels:
+        app: tfx-pipeline
+        component: pipeline-runner
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tfx-pipeline
+        image: tfx-taxi-pipeline:latest
+        imagePullPolicy: Never  # For local development
+        command: ["python", "/app/taxi_pipeline_k8s.py"]
+        envFrom:
+        - configMapRef:
+            name: tfx-pipeline-config
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: pipeline-storage
+          mountPath: /shared
+        - name: tmp-storage
+          mountPath: /tmp
+      volumes:
+      - name: pipeline-storage
+        persistentVolumeClaim:
+          claimName: tfx-pipeline-pvc
+      - name: tmp-storage
+        emptyDir: {}
+  backoffLimit: 3

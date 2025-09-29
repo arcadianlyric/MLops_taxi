@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: feast-service
+  namespace: mlops-system
+spec:
+  selector:
+    app: feast
+  ports:
+    - name: feast-ui
+      port: 8888
+      targetPort: 8888
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feast-config
+  namespace: mlops-system
+data:
+  feature_store.yaml: |
+    project: taxi_prediction
+    registry: /feast/data/registry.db
+    provider: local
+    online_store:
+      type: redis
+      connection_string: "redis://redis-service:6379"
+    offline_store:
+      type: file
+    entity_key_serialization_version: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feast
+  namespace: mlops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: feast
+  template:
+    metadata:
+      labels:
+        app: feast
+    spec:
+      containers:
+      - name: feast
+        image: python:3.9-slim
+        ports:
+        - containerPort: 8888
+        command: ["/bin/bash"]
+        args:
+          - -c
+          - |
+            pip install feast[redis]>=0.34.0 redis>=5.0.0
+            mkdir -p /feast/data
+            cd /feast
+            cp /config/feature_store.yaml .
+            feast apply || echo "Feast apply failed, continuing..."
+            feast ui --host 0.0.0.0 --port 8888
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: feast-data
+          mountPath: /feast/data
+        - name: feast-config
+          mountPath: /config
+        env:
+        - name: FEAST_USAGE
+          value: "False"
+      volumes:
+      - name: feast-data
+        emptyDir: {}
+      - name: feast-config
+        configMap:
+          name: feast-config

@@ -1,6 +1,36 @@
-# MLOps 平台快速开始指南
+# 🚀 MLOps Taxi Tip预测系统 - 快速启动
 
-## 🚀 当前运行状态
+## 立即部署（推荐）
+
+由于TFX完整训练需要较长时间，建议先使用简化版本快速部署：
+
+```bash
+cd /Users/yc/Documents/GitHub/tech_cs/projects/MLops/MLops_test
+chmod +x scripts/minikube-auto-deploy.sh
+./scripts/minikube-auto-deploy.sh
+```
+
+这个脚本将：
+1. ✅ 启动minikube（如果未运行）
+2. ✅ 构建Docker镜像
+3. ✅ 部署到Kubernetes
+4. ✅ 自动运行8项测试
+5. ✅ 返回UI和API访问地址
+
+**预计时间**: 5-10分钟
+
+## 访问UI进行Tip预测
+
+部署完成后，脚本会显示访问地址，例如：
+- Streamlit UI: `http://127.0.0.1:xxxxx`
+- FastAPI: `http://127.0.0.1:xxxxx`
+
+在浏览器中打开Streamlit UI地址，即可：
+1. 输入行程信息（距离、时长、车费等）
+2. 点击"🚕 Predict Tip"按钮
+3. 查看预测的tip金额
+
+## MLOps Platform Quick Start Guide当前运行状态
 
 ### ✅ 已成功部署的服务
 

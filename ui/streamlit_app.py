@@ -36,7 +36,7 @@ st.set_page_config(
 )
 
 # Global configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 def check_api_health():
     """Check API service health status"""
@@ -49,10 +49,7 @@ def check_api_health():
 def call_taxi_prediction_api(features: Dict[str, Any], endpoint: str = "predict"):
     """Call Chicago Taxi fare prediction API"""
     try:
-        payload = {
-            "features": features,
-            "model_name": "taxi_model"
-        }
+        payload = features
         
         response = requests.post(
             f"{API_BASE_URL}/{endpoint}",
@@ -171,6 +168,14 @@ def main():
             st.markdown("### 🚀 Execute Prediction")
             
             # Build feature dictionary
+            # Calculate pickup_day_of_week (Monday=0, Sunday=6)
+            try:
+                trip_date = datetime(2023, trip_start_month, trip_start_day)
+                pickup_day_of_week = trip_date.weekday()
+            except ValueError:
+                st.error("Invalid date selected. Please choose a valid day for the selected month.")
+                pickup_day_of_week = 0 # Default to Monday on error
+
             features = {
                 "trip_miles": trip_miles,
                 "trip_seconds": trip_seconds,
@@ -179,7 +184,8 @@ def main():
                 "pickup_longitude": pickup_longitude,
                 "dropoff_latitude": dropoff_latitude,
                 "dropoff_longitude": dropoff_longitude,
-                "trip_start_hour": trip_start_hour,
+                "pickup_hour": trip_start_hour, # Renamed from trip_start_hour
+                "pickup_day_of_week": pickup_day_of_week, # Added calculated field
                 "trip_start_day": trip_start_day,
                 "trip_start_month": trip_start_month,
                 "pickup_community_area": pickup_community_area,
@@ -187,7 +193,8 @@ def main():
                 "pickup_census_tract": pickup_census_tract,
                 "dropoff_census_tract": dropoff_census_tract,
                 "payment_type": payment_type,
-                "company": company
+                "company": company,
+                "passenger_count": 1 # Assuming a default passenger count
             }
             
             # Display input summary
@@ -211,53 +218,14 @@ def main():
                         st.success(f"✅ Prediction completed! Time taken: {(end_time-start_time)*1000:.2f}ms")
                         
                         # Display prediction results
-                        if result and 'prediction' in result:
-                            predicted_tip = result['prediction']
-                            confidence = result.get('confidence', 0.85)
+                        if result and 'fare_amount' in result:
+                            predicted_fare = result['fare_amount']
                             
                             # Main result display
                             st.markdown("### 🎆 Prediction Results")
                             
-                            result_col1, result_col2, result_col3 = st.columns(3)
-                            with result_col1:
-                                st.metric("💰 Predicted Tip", f"${predicted_tip:.2f}")
-                            with result_col2:
-                                tip_rate = (predicted_tip / fare) * 100 if fare > 0 else 0
-                                st.metric("📊 Tip Rate", f"{tip_rate:.1f}%")
-                            with result_col3:
-                                st.metric("🎯 Confidence", f"{confidence*100:.1f}%")
+                            st.metric("💰 Predicted Fare", f"${predicted_fare:.2f}")
                             
-                            # Result analysis
-                            st.markdown("### 📈 Result Analysis")
-                            
-                            # Tip range analysis
-                            if predicted_tip < 1:
-                                tip_category = "🔴 Low Tip"
-                                tip_message = "Low tip, possibly short distance or cash payment"
-                            elif predicted_tip < 3:
-                                tip_category = "🟡 Medium Tip"
-                                tip_message = "Tip within normal range"
-                            else:
-                                tip_category = "🟢 High Tip"
-                                tip_message = "High tip, possibly long distance or credit card payment"
-                            
-                            st.info(f"{tip_category}: {tip_message}")
-                            
-                            # Visualize results
-                            fig = go.Figure()
-                            fig.add_trace(go.Bar(
-                                x=['Fare', 'Predicted Tip', 'Total Cost'],
-                                y=[fare, predicted_tip, fare + predicted_tip],
-                                marker_color=['lightblue', 'lightgreen', 'orange'],
-                                text=[f'${fare:.2f}', f'${predicted_tip:.2f}', f'${fare + predicted_tip:.2f}'],
-                                textposition='auto'
-                            ))
-                            fig.update_layout(
-                                title="📊 Cost Breakdown Analysis",
-                                yaxis_title="Amount ($)",
-                                showlegend=False
-                            )
-                            st.plotly_chart(fig, use_container_width=True)
                             
                     else:
                         st.error(f"❌ Prediction failed: {result}")

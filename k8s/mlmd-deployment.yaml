@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlmd-service
+  namespace: mlops-system
+spec:
+  selector:
+    app: mlmd
+  ports:
+    - name: grpc
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: mlops-system
+spec:
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: mlops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "mlmd_password"
+        - name: MYSQL_DATABASE
+          value: "mlmd"
+        - name: MYSQL_USER
+          value: "mlmd_user"
+        - name: MYSQL_PASSWORD
+          value: "mlmd_password"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-data
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlmd
+  namespace: mlops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlmd
+  template:
+    metadata:
+      labels:
+        app: mlmd
+    spec:
+      containers:
+      - name: mlmd
+        image: ghcr.io/deploykf/ml-metadata/ml_metadata_store_server:1.14.0-deploykf.2
+        ports:
+        - containerPort: 8080
+        args:
+          - "--port=8080"
+          - "--mysql_config_host=mysql-service"
+          - "--mysql_config_port=3306"
+          - "--mysql_config_database=mlmd"
+          - "--mysql_config_user=mlmd_user"
+          - "--mysql_config_password=mlmd_password"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        - name: MLMD_CONNECTION_CONFIG
+          value: "mysql://mlmd_user:mlmd_password@mysql-service:3306/mlmd"

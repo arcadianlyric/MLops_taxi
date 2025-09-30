@@ -1,29 +1,17 @@
-# TFX 1.14.0 Compatible Dependencies
-# Based on https://github.com/tensorflow/tfx/blob/v1.14.0/RELEASE.md
+# TFX 0.21.4 Compatible Dependencies
 
 # Core TFX
-tfx==1.14.0
+tfx==0.21.4
 
 # TensorFlow
-tensorflow>=2.13,<2.14
+tensorflow==2.1.0
 
 # Apache Beam
-apache-beam>=2.40,<3
+apache-beam[gcp]==2.20.0
 
-# TensorFlow Transform
-tensorflow-transform>=1.14,<1.15
-
-# TensorFlow Model Analysis
-tensorflow-model-analysis>=0.45,<0.46
+# ML Metadata
+ml-metadata==0.21.1
 
 # Other dependencies
-tensorflow-hub>=0.9.0,<0.14
-pyarrow>=10,<11
-scikit-learn>=1.0,<2
-google-api-core<3
-pyyaml>=6,<7
-absl-py>=0.9
-
-# Additional utilities
-pandas>=1.0,<2
-numpy>=1.16,<2
+pyarrow==0.16.0
+absl-py==0.9.0

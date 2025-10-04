@@ -22,10 +22,10 @@ import random
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # Import integration modules
-from ui.feast_ui_integration import feast_ui
-from ui.kafka_ui_integration import kafka_ui
-from ui.mlflow_ui_integration import mlflow_ui
-from ui.mlmd_ui_integration import get_mlmd_ui_integration
+from feast_ui_integration import feast_ui
+from kafka_ui_integration import kafka_ui
+from mlflow_ui_integration import mlflow_ui
+from mlmd_ui_integration import get_mlmd_ui_integration
 
 # Page configuration
 st.set_page_config(

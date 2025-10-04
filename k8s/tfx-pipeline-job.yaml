@@ -1,27 +1,24 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: tfx-pipeline-job
-  namespace: tfx-pipeline
-  labels:
-    app: tfx-pipeline
-    component: pipeline-runner
+  name: tfx-taxi-pipeline
+  namespace: taxi-app
 spec:
+  backoffLimit: 2
   template:
     metadata:
       labels:
         app: tfx-pipeline
-        component: pipeline-runner
     spec:
       restartPolicy: Never
       containers:
-      - name: tfx-pipeline
-        image: tfx-taxi-pipeline:latest
-        imagePullPolicy: Never  # For local development
-        command: ["python", "/app/taxi_pipeline_k8s.py"]
-        envFrom:
-        - configMapRef:
-            name: tfx-pipeline-config
+      - name: tfx-runner
+        image: tensorflow/tfx:0.21.4
+        command: ["python3"]
+        args: ["/app/tfx_pipeline/taxi_pipeline_simple.py"]
+        volumeMounts:
+        - name: pipeline-code
+          mountPath: /app
         resources:
           requests:
             memory: "2Gi"
@@ -29,15 +26,20 @@ spec:
           limits:
             memory: "4Gi"
             cpu: "2000m"
-        volumeMounts:
-        - name: pipeline-storage
-          mountPath: /shared
-        - name: tmp-storage
-          mountPath: /tmp
       volumes:
-      - name: pipeline-storage
-        persistentVolumeClaim:
-          claimName: tfx-pipeline-pvc
-      - name: tmp-storage
-        emptyDir: {}
-  backoffLimit: 3
+      - name: pipeline-code
+        hostPath:
+          path: /Users/yc/Documents/GitHub/MLops_taxi
+          type: Directory
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tfx-model-storage
+  namespace: taxi-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

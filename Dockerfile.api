@@ -1,0 +1,20 @@
+# Dockerfile for FastAPI
+FROM python:3.9-slim
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装依赖
+RUN pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn==0.24.0 \
+    numpy==1.26.0
+
+# 复制 API 代码
+COPY api/ /app/api/
+
+# 暴露端口
+EXPOSE 8000
+
+# 启动命令
+CMD ["python3", "api/taxi_simple_api.py"]

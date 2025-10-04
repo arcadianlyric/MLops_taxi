@@ -1,0 +1,25 @@
+# Dockerfile for Streamlit UI
+FROM python:3.9-slim
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装依赖
+RUN pip install --no-cache-dir \
+    streamlit==1.28.0 \
+    requests==2.31.0 \
+    plotly==5.17.0 \
+    pandas==2.1.1 \
+    numpy==1.26.0
+
+# 复制 UI 代码
+COPY ui/ /app/
+
+# 暴露端口
+EXPOSE 8501
+
+# 设置环境变量
+ENV API_BASE_URL=http://api:8000
+
+# 启动命令
+CMD ["streamlit", "run", "streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]

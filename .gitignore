@@ -1,3 +1,12 @@
 *pyc
-README_CN.md
+
 mlops-env
+tmp
+*.DS_Store
+tfx_pipeline/pipelines/chicago_taxi_simple/Trainer
+tfx_pipeline/pipelines/chicago_taxi_simple/Transform
+tfx_pipeline/pipelines/chicago_taxi_simple/StatisticsGen
+tfx_pipeline/pipelines/chicago_taxi_simple/SchemaGen
+tfx_pipeline/pipelines/chicago_taxi_simple/ExampleGen
+tfx_pipeline/pipelines/chicago_taxi_simple/ExampleValidator
+tfx_pipeline/pipelines/chicago_taxi_simple/CsvExampleGen

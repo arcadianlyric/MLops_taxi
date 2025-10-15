@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # FastAPI 服务
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: taxi-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app/api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Streamlit UI 服务
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: taxi-ui
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./ui:/app
+    environment:
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+networks:
+  default:
+    name: taxi-network

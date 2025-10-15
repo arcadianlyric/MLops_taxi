@@ -26,18 +26,18 @@ class MLMDUIIntegration:
         self.mlmd_api_url = f"{api_base_url}/mlmd"
     
     def render_mlmd_interface(self):
-        """渲染 MLMD 主界面"""
-        st.header("🔗 MLMD 数据血缘追踪")
-        st.markdown("**ML Metadata (MLMD) 数据血缘关系和元数据管理**")
+        """render MLMD main interface"""
+        st.header("🔗 MLMD data lineage tracking")
+        st.markdown("**ML Metadata (MLMD) data lineage relationship and metadata management**")
         
-        # 创建标签页
+        # create tabs
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "📊 服务概览", 
-            "🌐 血缘关系图", 
-            "📦 Artifacts", 
-            "⚙️ Executions",
-            "📈 血缘分析",
-            "🧪 演示和测试"
+            "📊 service overview", 
+            "🌐 lineage graph", 
+            "📦 artifacts", 
+            "⚙️ executions",
+            "📈 lineage analysis",
+            "🧪 demo and testing"
         ])
         
         with tab1:
@@ -59,11 +59,11 @@ class MLMDUIIntegration:
             self._render_demo_and_testing()
     
     def _render_service_overview(self):
-        """渲染服务概览"""
-        st.subheader("📊 MLMD 服务状态")
+        """render service overview"""
+        st.subheader("📊 MLMD service status")
         
         try:
-            # 获取 MLMD 服务信息
+            # get MLMD service info
             response = requests.get(f"{self.mlmd_api_url}/info", timeout=10)
             
             if response.status_code == 200:
@@ -75,73 +75,73 @@ class MLMDUIIntegration:
                 with col1:
                     status_color = "🟢" if mlmd_info["available"] else "🔴"
                     st.metric(
-                        "服务状态",
-                        f"{status_color} {'可用' if mlmd_info['available'] else '不可用'}",
-                        delta=f"模式: {mlmd_info['mode']}"
+                        "status",
+                        f"{status_color} {'available' if mlmd_info['available'] else 'unavailable'}",
+                        delta=f"mode: {mlmd_info['mode']}"
                     )
                 
                 with col2:
                     st.metric(
-                        "Artifacts 总数",
+                        "artifacts total",
                         mlmd_info["total_artifacts"],
-                        delta="数据和模型制品"
+                        delta="data and model artifacts"
                     )
                 
                 with col3:
                     st.metric(
-                        "Executions 总数",
+                        "executions total",
                         mlmd_info["total_executions"],
-                        delta="执行过程"
+                        delta="executions"
                     )
                 
                 with col4:
                     st.metric(
-                        "Events 总数",
+                        "events total",
                         mlmd_info["total_events"],
-                        delta="血缘关系"
+                        delta="lineage events"
                     )
                 
-                # 显示详细信息
-                st.markdown("### 📋 详细信息")
+                # show detailed info
+                st.markdown("### 📋 detailed info")
                 
                 info_data = {
-                    "数据库路径": mlmd_info["database_path"],
-                    "运行模式": mlmd_info["mode"],
-                    "最后更新": mlmd_info["last_updated"],
-                    "服务可用性": "✅ 可用" if mlmd_info["available"] else "❌ 不可用"
+                    "database path": mlmd_info["database_path"],
+                    "mode": mlmd_info["mode"],
+                    "last updated": mlmd_info["last_updated"],
+                    "available": "✅ available" if mlmd_info["available"] else "❌ unavailable"
                 }
                 
                 for key, value in info_data.items():
                     st.text(f"{key}: {value}")
                 
                 # 显示原始数据
-                with st.expander("🔍 查看原始服务信息"):
+                with st.expander("🔍 show original info"):
                     st.json(mlmd_info)
             
             else:
-                st.error(f"❌ 无法获取 MLMD 服务信息 (状态码: {response.status_code})")
+                st.error(f"❌ MLMD info unavailable (status code: {response.status_code})")
         
         except requests.exceptions.RequestException as e:
-            st.warning(f"⚠️ MLMD 服务连接失败: {e}")
-            st.info("💡 请确保 FastAPI 服务正在运行 (http://localhost:8000)")
+            st.warning(f"⚠️ MLMD connection failed: {e}")
+            st.info("💡 please ensure FastAPI service is running (http://localhost:8000)")
         
         except Exception as e:
-            st.error(f"❌ 获取 MLMD 信息时发生错误: {e}")
+            st.error(f"❌ get MLMD info failed: {e}")
     
     def _render_lineage_graph(self):
-        """渲染血缘关系图"""
-        st.subheader("🌐 数据血缘关系图")
+        """render lineage graph"""
+        st.subheader("🌐 data lineage graph")
         
-        # 查询选项
+        # query options
         col1, col2 = st.columns(2)
         with col1:
-            artifact_id = st.text_input("🎯 Artifact ID (可选)", help="指定特定的 Artifact ID 进行查询")
+            artifact_id = st.text_input("🎯 artifact id (optional)", help="specify specific artifact id for query")
         with col2:
-            execution_id = st.text_input("⚙️ Execution ID (可选)", help="指定特定的 Execution ID 进行查询")
+            execution_id = st.text_input("⚙️ execution id (optional)", help="specify specific execution id for query")
         
-        if st.button("🔍 获取血缘关系图", type="primary"):
+        if st.button("🔍 get lineage graph", type="primary"):
             try:
-                # 构建查询参数
+                # build query params
                 params = {}
                 if artifact_id:
                     params["artifact_id"] = artifact_id
@@ -153,41 +153,41 @@ class MLMDUIIntegration:
                 if response.status_code == 200:
                     lineage_data = response.json()
                     
-                    # 显示血缘关系图
+                    # visualize lineage graph
                     self._visualize_lineage_graph(lineage_data)
                     
-                    # 显示统计信息
+                    # show statistics
                     metadata = lineage_data.get("metadata", {})
-                    st.markdown("### 📊 血缘关系统计")
+                    st.markdown("### 📊 lineage statistics")
                     
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("节点总数", metadata.get("total_nodes", 0))
+                        st.metric("total nodes", metadata.get("total_nodes", 0))
                     with col2:
-                        st.metric("边总数", metadata.get("total_edges", 0))
+                        st.metric("total edges", metadata.get("total_edges", 0))
                     with col3:
-                        st.metric("生成模式", metadata.get("mode", "unknown"))
+                        st.metric("mode", metadata.get("mode", "unknown"))
                     
-                    # 显示原始数据
-                    with st.expander("🔍 查看原始血缘数据"):
+                    # show original data
+                    with st.expander("🔍 show original lineage data"):
                         st.json(lineage_data)
                 
                 else:
-                    st.error(f"❌ 获取血缘关系图失败 (状态码: {response.status_code})")
+                    st.error(f"❌ get lineage graph failed (status code: {response.status_code})")
             
             except Exception as e:
-                st.error(f"❌ 获取血缘关系图时发生错误: {e}")
+                st.error(f"❌ get lineage graph failed: {e}")
     
     def _visualize_lineage_graph(self, lineage_data: Dict[str, Any]):
-        """可视化血缘关系图"""
+        """visualize lineage graph"""
         nodes = lineage_data.get("nodes", [])
         edges = lineage_data.get("edges", [])
         
         if not nodes:
-            st.warning("⚠️ 没有找到血缘关系数据")
+            st.warning("⚠️ no lineage data found")
             return
         
-        # 创建网络图
+        # create network graph
         fig = go.Figure()
         
         # 节点位置计算 (简化的布局算法)
@@ -246,14 +246,14 @@ class MLMDUIIntegration:
                 hovertemplate="<b>%{text}</b><br>类型: Execution<extra></extra>"
             ))
         
-        # 更新布局
+        # update layout
         fig.update_layout(
-            title="🌐 数据血缘关系图",
+            title="🌐 data lineage graph",
             showlegend=True,
             hovermode='closest',
             margin=dict(b=20,l=5,r=5,t=40),
             annotations=[ dict(
-                text="蓝色圆圈: Artifacts (数据/模型) | 红色方块: Executions (执行过程)",
+                text="blue circle: Artifacts (data/model) | red square: Executions (execution process)",
                 showarrow=False,
                 xref="paper", yref="paper",
                 x=0.005, y=-0.002,
@@ -284,10 +284,10 @@ class MLMDUIIntegration:
         return positions
     
     def _render_artifacts_management(self):
-        """渲染 Artifacts 管理"""
-        st.subheader("📦 Artifacts 管理")
+        """render artifacts management"""
+        st.subheader("📦 artifacts management")
         
-        if st.button("🔄 刷新 Artifacts 列表", type="secondary"):
+        if st.button("🔄 refresh artifacts list", type="secondary"):
             try:
                 response = requests.get(f"{self.mlmd_api_url}/lineage/artifacts", timeout=10)
                 
@@ -301,56 +301,56 @@ class MLMDUIIntegration:
                         for artifact in artifacts:
                             df_data.append({
                                 "ID": artifact["id"],
-                                "名称": artifact["name"],
-                                "类型": artifact.get("subtype", "Unknown"),
+                                "name": artifact["name"],
+                                "subtype": artifact.get("subtype", "Unknown"),
                                 "URI": artifact.get("uri", ""),
-                                "创建时间": artifact.get("timestamp", "")
+                                "timestamp": artifact.get("timestamp", "")
                             })
                         
                         df = pd.DataFrame(df_data)
                         
-                        # 显示统计信息
+                        # show statistics
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Artifacts 总数", len(artifacts))
+                            st.metric("Artifacts count", len(artifacts))
                         with col2:
-                            types = df["类型"].value_counts()
-                            st.metric("类型数量", len(types))
+                            types = df["subtype"].value_counts()
+                            st.metric("subtype count", len(types))
                         with col3:
-                            st.metric("最新创建", df["创建时间"].max() if not df.empty else "无")
+                            st.metric("latest created", df["timestamp"].max() if not df.empty else "")
                         
                         # 显示 Artifacts 表格
-                        st.markdown("### 📋 Artifacts 列表")
+                        st.markdown("### 📋 Artifacts list")
                         st.dataframe(df, use_container_width=True)
                         
-                        # 类型分布图
+                        # subtype distribution
                         if len(types) > 0:
-                            st.markdown("### 📊 Artifacts 类型分布")
+                            st.markdown("### 📊 Artifacts subtype distribution")
                             fig = px.pie(
                                 values=types.values,
                                 names=types.index,
-                                title="Artifacts 类型分布"
+                                title="Artifacts subtype distribution"
                             )
                             st.plotly_chart(fig, use_container_width=True)
                         
-                        # 显示原始数据
-                        with st.expander("🔍 查看原始 Artifacts 数据"):
+                        # show original data
+                        with st.expander("🔍 show original Artifacts data"):
                             st.json(artifacts_data)
                     
                     else:
-                        st.info("ℹ️ 暂无 Artifacts 数据")
+                        st.info("ℹ️ no Artifacts data")
                 
                 else:
-                    st.error(f"❌ 获取 Artifacts 失败 (状态码: {response.status_code})")
+                    st.error(f"❌ failed to get Artifacts (status code: {response.status_code})")
             
             except Exception as e:
-                st.error(f"❌ 获取 Artifacts 时发生错误: {e}")
+                st.error(f"❌ failed to get Artifacts: {e}")
     
     def _render_executions_management(self):
-        """渲染 Executions 管理"""
-        st.subheader("⚙️ Executions 管理")
+        """render Executions management"""
+        st.subheader("⚙️ Executions management")
         
-        if st.button("🔄 刷新 Executions 列表", type="secondary"):
+        if st.button("🔄 refresh Executions list", type="secondary"):
             try:
                 response = requests.get(f"{self.mlmd_api_url}/lineage/executions", timeout=10)
                 
@@ -364,65 +364,65 @@ class MLMDUIIntegration:
                         for execution in executions:
                             df_data.append({
                                 "ID": execution["id"],
-                                "名称": execution["name"],
-                                "类型": execution.get("subtype", "Unknown"),
-                                "创建时间": execution.get("timestamp", "")
+                                "name": execution["name"],
+                                "subtype": execution.get("subtype", "Unknown"),
+                                "timestamp": execution.get("timestamp", "")
                             })
                         
                         df = pd.DataFrame(df_data)
                         
-                        # 显示统计信息
+                        # show statistics
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Executions 总数", len(executions))
+                            st.metric("Executions count", len(executions))
                         with col2:
-                            types = df["类型"].value_counts()
-                            st.metric("类型数量", len(types))
+                            types = df["subtype"].value_counts()
+                            st.metric("subtype count", len(types))
                         with col3:
-                            st.metric("最新执行", df["创建时间"].max() if not df.empty else "无")
+                            st.metric("latest execution", df["timestamp"].max() if not df.empty else "")
                         
                         # 显示 Executions 表格
-                        st.markdown("### 📋 Executions 列表")
+                        st.markdown("### 📋 Executions list")
                         st.dataframe(df, use_container_width=True)
                         
-                        # 类型分布图
+                        # subtype distribution
                         if len(types) > 0:
-                            st.markdown("### 📊 Executions 类型分布")
+                            st.markdown("### 📊 Executions subtype distribution")
                             fig = px.pie(
                                 values=types.values,
                                 names=types.index,
-                                title="Executions 类型分布"
+                                title="Executions subtype distribution"
                             )
                             st.plotly_chart(fig, use_container_width=True)
                         
-                        # 显示原始数据
-                        with st.expander("🔍 查看原始 Executions 数据"):
+                        # show original data
+                        with st.expander("🔍 show original Executions data"):
                             st.json(executions_data)
                     
                     else:
-                        st.info("ℹ️ 暂无 Executions 数据")
+                        st.info("ℹ️ no Executions data")
                 
                 else:
-                    st.error(f"❌ 获取 Executions 失败 (状态码: {response.status_code})")
+                    st.error(f"❌ failed to get Executions (status code: {response.status_code})")
             
             except Exception as e:
-                st.error(f"❌ 获取 Executions 时发生错误: {e}")
+                st.error(f"❌ failed to get Executions: {e}")
     
     def _render_lineage_analysis(self):
         """渲染血缘分析"""
-        st.subheader("📈 血缘关系分析")
+        st.subheader("📈 lineage analysis")
         
-        # 分析选项
+        # analysis type
         analysis_type = st.selectbox(
-            "选择分析类型",
-            ["管道深度分析", "数据流分析"],
-            help="选择要执行的血缘关系分析类型"
+            "analysis type",
+            ["pipeline depth analysis", "data flow analysis"],
+            help="select the type of lineage analysis to execute"
         )
         
-        if st.button("🔍 执行分析", type="primary"):
-            if analysis_type == "管道深度分析":
+        if st.button("🔍 execute analysis", type="primary"):
+            if analysis_type == "pipeline depth analysis":
                 self._perform_pipeline_depth_analysis()
-            elif analysis_type == "数据流分析":
+            elif analysis_type == "data flow analysis":
                 self._perform_data_flow_analysis()
     
     def _perform_pipeline_depth_analysis(self):
@@ -433,52 +433,52 @@ class MLMDUIIntegration:
             if response.status_code == 200:
                 analysis_data = response.json()
                 
-                st.markdown("### 📊 管道深度分析结果")
+                st.markdown("### 📊 pipeline depth analysis result")
                 
-                # 显示关键指标
+                # show key metrics
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("管道深度", analysis_data["pipeline_depth"])
+                    st.metric("pipeline depth", analysis_data["pipeline_depth"])
                 with col2:
-                    st.metric("Artifacts 总数", analysis_data["total_artifacts"])
+                    st.metric("total artifacts", analysis_data["total_artifacts"])
                 with col3:
-                    st.metric("复杂度评分", f"{analysis_data['complexity_score']:.2f}")
+                    st.metric("complexity score", f"{analysis_data['complexity_score']:.2f}")
                 with col4:
-                    st.metric("分析时间", analysis_data["analysis_timestamp"][:19])
+                    st.metric("analysis timestamp", analysis_data["analysis_timestamp"][:19])
                 
-                # Execution 类型分布
+                # Execution types distribution
                 if analysis_data["execution_types"]:
-                    st.markdown("### ⚙️ Execution 类型分布")
+                    st.markdown("### ⚙️ Execution types distribution")
                     exec_types = analysis_data["execution_types"]
                     fig = px.bar(
                         x=list(exec_types.keys()),
                         y=list(exec_types.values()),
-                        title="Execution 类型分布",
-                        labels={"x": "Execution 类型", "y": "数量"}
+                        title="Execution types distribution",
+                        labels={"x": "Execution types", "y": "count"}
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 
-                # Artifact 类型分布
+                # Artifact types distribution
                 if analysis_data["artifact_types"]:
-                    st.markdown("### 📦 Artifact 类型分布")
+                    st.markdown("### 📦 Artifact types distribution")
                     art_types = analysis_data["artifact_types"]
                     fig = px.bar(
                         x=list(art_types.keys()),
                         y=list(art_types.values()),
-                        title="Artifact 类型分布",
-                        labels={"x": "Artifact 类型", "y": "数量"}
+                        title="Artifact types distribution",
+                        labels={"x": "Artifact types", "y": "count"}
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 
-                # 显示原始数据
-                with st.expander("🔍 查看详细分析数据"):
+                # show original data
+                with st.expander("🔍 show detailed analysis data"):
                     st.json(analysis_data)
             
             else:
-                st.error(f"❌ 管道深度分析失败 (状态码: {response.status_code})")
+                st.error(f"❌ pipeline depth analysis failed (status code: {response.status_code})")
         
         except Exception as e:
-            st.error(f"❌ 执行管道深度分析时发生错误: {e}")
+            st.error(f"❌ failed to perform pipeline depth analysis: {e}")
     
     def _perform_data_flow_analysis(self):
         """执行数据流分析"""
@@ -488,86 +488,86 @@ class MLMDUIIntegration:
             if response.status_code == 200:
                 analysis_data = response.json()
                 
-                st.markdown("### 🌊 数据流分析结果")
+                st.markdown("### 🌊 data flow analysis result")
                 
-                # 显示关键指标
+                # show key metrics
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("数据流总数", analysis_data["total_flows"])
+                    st.metric("total data flows", analysis_data["total_flows"])
                 with col2:
-                    st.metric("平均路径长度", f"{analysis_data['average_path_length']:.1f}")
+                    st.metric("average path length", f"{analysis_data['average_path_length']:.1f}")
                 with col3:
-                    st.metric("分析时间", analysis_data["analysis_timestamp"][:19])
+                    st.metric("analysis timestamp", analysis_data["analysis_timestamp"][:19])
                 
-                # 数据流详情
+                # data flows details
                 data_flows = analysis_data["data_flows"]
                 if data_flows:
-                    st.markdown("### 📋 数据流路径")
+                    st.markdown("### 📋 data flows paths")
                     
                     for i, flow in enumerate(data_flows):
-                        with st.expander(f"数据流 {i+1}: {flow['source_dataset']}"):
-                            st.write(f"**源数据集**: {flow['source_dataset']}")
-                            st.write(f"**路径长度**: {flow['path_length']}")
-                            st.write("**流动路径**:")
+                        with st.expander(f"data flow {i+1}: {flow['source_dataset']}"):
+                            st.write(f"**source dataset**: {flow['source_dataset']}")
+                            st.write(f"**path length**: {flow['path_length']}")
+                            st.write("**flow path**:")
                             
-                            # 显示流动路径
+                            # show flow path
                             path_str = " → ".join(flow['flow_path'])
                             st.code(path_str)
                 
-                # 显示原始数据
-                with st.expander("🔍 查看详细分析数据"):
+                # show original data
+                with st.expander("🔍 show detailed analysis data"):
                     st.json(analysis_data)
             
             else:
-                st.error(f"❌ 数据流分析失败 (状态码: {response.status_code})")
+                st.error(f"❌ data flow analysis failed (status code: {response.status_code})")
         
         except Exception as e:
-            st.error(f"❌ 执行数据流分析时发生错误: {e}")
+            st.error(f"❌ data flow analysis failed: {e}")
     
     def _render_demo_and_testing(self):
         """渲染演示和测试"""
-        st.subheader("🧪 演示和测试")
+        st.subheader("🧪 demo and testing")
         
-        # 创建示例数据
-        st.markdown("### 🎯 创建示例血缘数据")
-        st.markdown("点击下面的按钮创建示例血缘关系数据，用于演示和测试。")
+        # create example data
+        st.markdown("### 🎯 create example lineage data")
+        st.markdown("click the button below to create example lineage data for demo and testing.")
         
-        if st.button("🚀 创建示例血缘数据", type="primary"):
+        if st.button("🚀 create example lineage data", type="primary"):
             try:
                 response = requests.post(f"{self.mlmd_api_url}/demo/create-sample-lineage", timeout=15)
                 
                 if response.status_code == 200:
                     result = response.json()
                     
-                    st.success("✅ 示例血缘数据创建成功！")
+                    st.success("✅ example lineage data created successfully!")
                     
-                    # 显示创建结果
+                    # show creation result
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.info(f"**数据摄取执行 ID**: {result['ingestion_execution_id']}")
+                        st.info(f"**ingestion execution id**: {result['ingestion_execution_id']}")
                     with col2:
-                        st.info(f"**模型训练执行 ID**: {result['training_execution_id']}")
+                        st.info(f"**training execution id**: {result['training_execution_id']}")
                     
-                    st.markdown(f"**创建时间**: {result['created_at']}")
+                    st.markdown(f"**created at**: {result['created_at']}")
                     
                     # 显示原始响应
-                    with st.expander("🔍 查看创建详情"):
+                    with st.expander("🔍 show details"):
                         st.json(result)
                     
                     st.markdown("---")
-                    st.info("💡 现在您可以在 '血缘关系图' 标签页中查看创建的示例数据！")
+                    st.info("💡 now you can view the created example data in the 'lineage graph' tab!")
                 
                 else:
-                    st.error(f"❌ 创建示例数据失败 (状态码: {response.status_code})")
+                    st.error(f"❌ failed to create example data (status code: {response.status_code})")
             
             except Exception as e:
-                st.error(f"❌ 创建示例数据时发生错误: {e}")
+                st.error(f"❌ failed to create example data: {e}")
         
-        # 导出报告
-        st.markdown("### 📄 导出血缘关系报告")
-        st.markdown("生成并导出完整的血缘关系报告。")
+        # export report
+        st.markdown("### 📄 export report")
+        st.markdown("generate and export complete lineage report.")
         
-        if st.button("📥 导出血缘关系报告", type="secondary"):
+        if st.button("📥 export report", type="secondary"):
             try:
                 response = requests.post(f"{self.mlmd_api_url}/reports/export", timeout=15)
                 
@@ -575,17 +575,17 @@ class MLMDUIIntegration:
                     result = response.json()
                     
                     if result["status"] == "generating":
-                        st.info("⏳ 血缘关系报告正在后台生成...")
-                        st.markdown(f"**报告路径**: {result['report_path']}")
-                        st.markdown(f"**预计完成时间**: {result['estimated_completion']}")
+                        st.info("⏳ report is generating...")
+                        st.markdown(f"**report path**: {result['report_path']}")
+                        st.markdown(f"**estimated completion**: {result['estimated_completion']}")
                     else:
                         st.warning(f"⚠️ {result['message']}")
                 
                 else:
-                    st.error(f"❌ 导出报告失败 (状态码: {response.status_code})")
+                    st.error(f"❌ failed to export report (status code: {response.status_code})")
             
             except Exception as e:
-                st.error(f"❌ 导出报告时发生错误: {e}")
+                st.error(f"❌ failed to export report: {e}")
 
 
 # 全局实例

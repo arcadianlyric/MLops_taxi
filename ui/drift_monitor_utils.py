@@ -60,10 +60,10 @@ class DriftMonitorUI:
             try:
                 with open(path, 'r', encoding='utf-8') as f:
                     self.drift_data = json.load(f)
-                st.success(f"✅ 已加载真实漂移监控数据: {os.path.basename(path)}")
+                st.success(f"✅ drift data loaded: {os.path.basename(path)}")
                 return True
             except Exception as e:
-                st.warning(f"加载真实数据失败: {e}，将使用模拟数据")
+                st.warning(f"load drift data failed: {e}, will use mock data")
         
         # 如果没有真实数据，生成模拟数据
         self.drift_data = self._generate_mock_drift_data()
@@ -93,13 +93,13 @@ class DriftMonitorUI:
             
             # 分类漂移类型
             if drift_score < 0.1:
-                drift_type = "无漂移"
+                drift_type = "No"
             elif drift_score < 0.3:
-                drift_type = "轻微漂移"
+                drift_type = "Low"
             elif drift_score < 0.5:
-                drift_type = "中等漂移"
+                drift_type = "Medium"
             else:
-                drift_type = "严重漂移"
+                drift_type = "High"
             
             feature_details[feature] = {
                 'drift_score': round(drift_score, 3),
@@ -172,22 +172,22 @@ class DriftMonitorUI:
             }
     
     def _generate_mock_recommendations(self, overall_drift: bool) -> List[str]:
-        """生成模拟建议"""
+        """generate mock recommendations"""
         if overall_drift:
             return [
-                "检测到数据漂移，建议进行以下操作：",
-                "1. 检查数据收集流程是否有变化",
-                "2. 考虑重新训练模型",
-                "3. 更新数据预处理逻辑",
-                "4. 特别关注严重漂移特征"
+                "drift detected, please take the following actions:",
+                "1. check data collection process",
+                "2. consider retraining model",
+                "3. update data preprocessing logic",
+                "4. pay special attention to severe drift features"
             ]
         else:
-            return ["未检测到显著数据漂移，模型可以继续使用"]
+            return ["no drift detected, model can continue to use"]
     
     def render_drift_overview(self):
         """渲染漂移概览"""
         if not self.drift_data:
-            st.error("未找到漂移数据，请先加载数据")
+            st.error("no drift data found, please load data first")
             return
         
         summary = self.drift_data['summary']
@@ -196,22 +196,22 @@ class DriftMonitorUI:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            drift_status = "🔴 检测到漂移" if summary['overall_drift_detected'] else "🟢 无漂移"
-            st.metric("漂移状态", drift_status)
+            drift_status = "🔴 drift detected" if summary['overall_drift_detected'] else "🟢 无漂移"
+            st.metric("drift status", drift_status)
         
         with col2:
-            st.metric("漂移特征数", f"{summary['drifted_features_count']}/{summary['total_features_checked']}")
+            st.metric("drifted features count", f"{summary['drifted_features_count']}/{summary['total_features_checked']}")
         
         with col3:
             drift_rate = (summary['drifted_features_count'] / summary['total_features_checked']) * 100
-            st.metric("漂移率", f"{drift_rate:.1f}%")
+            st.metric("drift rate", f"{drift_rate:.1f}%")
         
         with col4:
-            st.metric("检测阈值", f"{summary['threshold']}")
+            st.metric("threshold", f"{summary['threshold']}")
         
         # 时间信息
         timestamp = datetime.fromisoformat(summary['timestamp'].replace('Z', '+00:00'))
-        st.info(f"📅 最后检测时间: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+        st.info(f"📅 last checked time stamp: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
     
     def render_feature_drift_chart(self):
         """渲染特征漂移图表"""
@@ -224,10 +224,10 @@ class DriftMonitorUI:
         
         # 创建颜色映射
         color_map = {
-            "无漂移": "#2E8B57",      # 绿色
-            "轻微漂移": "#FFD700",    # 黄色
-            "中等漂移": "#FF8C00",    # 橙色
-            "严重漂移": "#DC143C"     # 红色
+            "No": "#2E8B57",      # 绿色
+            "Low": "#FFD700",    # 黄色
+            "Medium": "#FF8C00",    # 橙色
+            "High": "#DC143C"     # 红色
         }
         
         colors = [color_map.get(dt, "#808080") for dt in drift_types]
@@ -246,12 +246,12 @@ class DriftMonitorUI:
         
         # 添加阈值线
         fig.add_hline(y=0.1, line_dash="dash", line_color="red", 
-                     annotation_text="漂移阈值 (0.1)")
+                     annotation_text="drift threshold (0.1)")
         
         fig.update_layout(
-            title="特征漂移分数分布",
-            xaxis_title="特征",
-            yaxis_title="漂移分数",
+            title="feature drift score distribution",
+            xaxis_title="feature",
+            yaxis_title="drift score",
             showlegend=False,
             height=500
         )
@@ -274,16 +274,16 @@ class DriftMonitorUI:
         fig = go.Figure(data=go.Heatmap(
             z=heatmap_data,
             x=features,
-            y=['漂移分数'],
+            y=['drift score'],
             colorscale='RdYlGn_r',
             zmin=0,
             zmax=1,
-            colorbar=dict(title="漂移分数"),
-            hovertemplate="特征: %{x}<br>漂移分数: %{z:.3f}<extra></extra>"
+            colorbar=dict(title="drift score"),
+            hovertemplate="feature: %{x}<br>drift score: %{z:.3f}<extra></extra>"
         ))
         
         fig.update_layout(
-            title="特征漂移热力图",
+            title="feature drift score heatmap",
             height=200
         )
         
@@ -300,17 +300,17 @@ class DriftMonitorUI:
         baseline_stats = feature_data['baseline_stats']
         current_stats = feature_data['current_stats']
         
-        st.subheader(f"特征分析: {selected_feature}")
+        st.subheader(f"feature analysis: {selected_feature}")
         
         # 基本信息
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("漂移分数", f"{feature_data['drift_score']:.3f}")
+            st.metric("drift score", f"{feature_data['drift_score']:.3f}")
         with col2:
-            st.metric("漂移类型", feature_data['drift_type'])
+            st.metric("drift type", feature_data['drift_type'])
         with col3:
-            status = "是" if feature_data['is_drifted'] else "否"
-            st.metric("是否漂移", status)
+            status = "yes" if feature_data['is_drifted'] else "no"
+            st.metric("drift detected", status)
         
         # 统计对比
         if baseline_stats.get('type') == 'FLOAT':
@@ -331,14 +331,14 @@ class DriftMonitorUI:
         fig = go.Figure()
         
         fig.add_trace(go.Bar(
-            name='基线数据',
+            name='baseline',
             x=metrics,
             y=baseline_values,
             marker_color='lightblue'
         ))
         
         fig.add_trace(go.Bar(
-            name='当前数据',
+            name='current data',
             x=metrics,
             y=current_values,
             marker_color='lightcoral'
@@ -347,7 +347,7 @@ class DriftMonitorUI:
         fig.update_layout(
             title="数值特征统计对比",
             xaxis_title="统计指标",
-            yaxis_title="数值",
+            yaxis_title="score",
             barmode='group'
         )
         
@@ -372,23 +372,23 @@ class DriftMonitorUI:
         fig = go.Figure()
         
         fig.add_trace(go.Bar(
-            name='基线数据',
+            name='baseline',
             x=categories,
             y=baseline_freqs,
             marker_color='lightblue'
         ))
         
         fig.add_trace(go.Bar(
-            name='当前数据',
+            name='current date',
             x=categories,
             y=current_freqs,
             marker_color='lightcoral'
         ))
         
         fig.update_layout(
-            title="分类特征频率对比",
-            xaxis_title="类别",
-            yaxis_title="频率",
+            title="Categorical Feature Frequency",
+            xaxis_title="category",
+            yaxis_title="frequency",
             barmode='group'
         )
         
@@ -403,10 +403,10 @@ class DriftMonitorUI:
         
         recommendations = self.drift_data.get('recommendations', [])
         
-        st.subheader("💡 建议")
+        st.subheader("💡 suggestion")
         
         for i, rec in enumerate(recommendations, 1):
-            if rec.startswith("检测到数据漂移") or rec.startswith("未检测到"):
+            if rec.startswith("drift detected") or rec.startswith("not detected"):
                 st.info(rec)
             else:
                 st.write(f"{rec}")
@@ -423,7 +423,7 @@ class DriftMonitorUI:
         
         fig = make_subplots(
             rows=2, cols=1,
-            subplot_titles=('整体漂移状态', '平均漂移分数'),
+            subplot_titles=('Drift Status', 'Average Drift Score'),
             vertical_spacing=0.1
         )
         
@@ -433,7 +433,7 @@ class DriftMonitorUI:
                 x=dates,
                 y=overall_drift,
                 mode='lines+markers',
-                name='漂移状态',
+                name='drift status',
                 line=dict(color='red'),
                 yaxis='y1'
             ),
@@ -446,7 +446,7 @@ class DriftMonitorUI:
                 x=dates,
                 y=avg_drift_score,
                 mode='lines+markers',
-                name='平均漂移分数',
+                name='average drift score',
                 line=dict(color='blue'),
                 yaxis='y2'
             ),
@@ -454,13 +454,13 @@ class DriftMonitorUI:
         )
         
         fig.update_layout(
-            title="数据漂移历史趋势",
+            title="Drift History Trend",
             height=500,
             showlegend=False
         )
         
-        fig.update_yaxes(title_text="漂移状态", row=1, col=1)
-        fig.update_yaxes(title_text="漂移分数", row=2, col=1)
+        fig.update_yaxes(title_text="drift status", row=1, col=1)
+        fig.update_yaxes(title_text="average drift score", row=2, col=1)
         
         st.plotly_chart(fig, use_container_width=True)
     
@@ -476,20 +476,20 @@ class DriftMonitorUI:
 # 数据漂移监控报告
 
 ## 概览
-- 检测时间: {summary['timestamp']}
-- 整体漂移状态: {'检测到漂移' if summary['overall_drift_detected'] else '无漂移'}
-- 漂移特征数: {summary['drifted_features_count']}/{summary['total_features_checked']}
-- 检测阈值: {summary['threshold']}
+- detection time: {summary['timestamp']}
+- drift status: {'detected' if summary['overall_drift_detected'] else 'no drift'}
+- drifted features count: {summary['drifted_features_count']}/{summary['total_features_checked']}
+- detection threshold: {summary['threshold']}
 
-## 特征详情
+## feature details
 """
         
         for feature, details in self.drift_data['feature_details'].items():
             report += f"""
 ### {feature}
-- 漂移分数: {details['drift_score']:.3f}
-- 漂移类型: {details['drift_type']}
-- 是否漂移: {'是' if details['is_drifted'] else '否'}
+- drift score: {details['drift_score']:.3f}
+- drift type: {details['drift_type']}
+- drift detected: {'yes' if details['is_drifted'] else 'no'}
 """
         
         report += f"""

@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+mlops-env/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+tmp/
+
+# TFX Pipeline outputs (训练输出，不需要在镜像中)
+tfx_pipeline/pipelines/
+
+# Large binaries
+minikube-darwin-amd64
+*.tar
+*.zip
+
+# Documentation (不需要在镜像中)
+README*.md
+docs/
+examples/
+*.md
+
+# Test files
+tests/
+test_*.py
+*_test.py
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Feast
+feast_repo/data/
+feast_repo/feature_repo.db
+
+# Kafka
+kafka/data/
+
+# MLflow
+mlflow/mlruns/
+mlflow/artifacts/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp

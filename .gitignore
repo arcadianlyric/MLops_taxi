@@ -1,8 +1,21 @@
-*pyc
+*.pyc
+__pycache__/
+*.py[cod]
 
-mlops-env
-tmp
+# Virtual environments
+venv/
+.venv/
+mlops-env/
+env/
+ENV/
+
+# Temporary files
+tmp/
 *.DS_Store
+*.log
+
+# Large binaries
+minikube-darwin-amd64
 tfx_pipeline/pipelines/chicago_taxi_simple/Trainer
 tfx_pipeline/pipelines/chicago_taxi_simple/Transform
 tfx_pipeline/pipelines/chicago_taxi_simple/StatisticsGen

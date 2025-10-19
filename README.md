@@ -435,21 +435,3 @@ services:
 
 ---
 
-## 📝 License
-
-MIT License
-
----
-
-## 🙏 Acknowledgments
-
-- [TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx)
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [Streamlit](https://streamlit.io/)
-- [Docker](https://www.docker.com/)
-
----
-
-**Last Updated**: 2025-10-14  
-**Version**: 2.0.0  
-**Status**: ✅ Production Ready

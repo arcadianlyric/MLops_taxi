@@ -1,8 +1,10 @@
 # 🚕 Chicago Taxi Tip Prediction - MLOps Platform
 
 A production-grade MLOps system for predicting taxi tips.
-![app UI](img/UI.png), ![app batch](img/UI_batch.png), ![app data drift](img/UI_drift.png)
 
+| Image 1 | Image 2 | Image 3 |
+| :---: | :---: | :---: |
+| <img src="img/UI.png" width="100%"> | <img src="img/UI_batch.png" width="100%"> | <img src="img/UI_drift.png" width="100%"> |
 ---
 
 

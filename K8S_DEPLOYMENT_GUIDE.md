@@ -1,1 +1,0 @@
-docs/K8S_DEPLOYMENT_GUIDE.md

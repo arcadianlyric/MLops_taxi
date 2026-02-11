@@ -4,6 +4,7 @@ Streamlit UI MLflow 模型注册中心集成模块
 为 Streamlit 应用提供 MLflow 模型管理的可视化功能
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -737,4 +738,4 @@ class MLflowUIIntegration:
 
 
 # global instance
-mlflow_ui = MLflowUIIntegration()
+mlflow_ui = MLflowUIIntegration(api_base_url=os.getenv("API_BASE_URL", "http://localhost:8000"))

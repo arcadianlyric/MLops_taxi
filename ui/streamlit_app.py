@@ -35,6 +35,33 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ---------------------------------------------------------------------------
+# Custom CSS – normalise font sizes (only st.header stays large)
+# ---------------------------------------------------------------------------
+st.markdown("""
+<style>
+/* Metric label */
+[data-testid="stMetricLabel"] { font-size: 0.85rem !important; }
+/* Metric value */
+[data-testid="stMetricValue"] { font-size: 1.1rem !important; }
+/* Metric delta */
+[data-testid="stMetricDelta"] { font-size: 0.75rem !important; }
+/* Subheaders inside tabs */
+.stTabs [data-baseweb="tab-panel"] h3 { font-size: 1.05rem !important; }
+/* Tab labels */
+.stTabs [data-baseweb="tab"] button p { font-size: 0.85rem !important; }
+/* Expander header */
+.streamlit-expanderHeader p { font-size: 0.9rem !important; }
+/* General markdown / body text */
+.stMarkdown p, .stMarkdown li { font-size: 0.9rem !important; }
+/* Dataframe header */
+[data-testid="stDataFrame"] th { font-size: 0.8rem !important; }
+/* Selectbox / input labels */
+.stSelectbox label, .stNumberInput label, .stTextInput label,
+.stSlider label, .stRadio label { font-size: 0.85rem !important; }
+</style>
+""", unsafe_allow_html=True)
+
 # Global configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
@@ -384,134 +411,152 @@ def main():
             else:
                 st.warning("Please generate batch test data first")
     
-    # Tab 3: Data analysis
+    # Tab 3: Data analysis (real data from API)
     with tab3:
         st.header("📊 Chicago Taxi Data Analysis")
-        st.markdown("In-depth analysis and insights of taxi data based on TFX Pipeline")
+        st.markdown("In-depth analysis and insights based on **real Chicago Taxi dataset**")
         
-        # Data overview
-        st.subheader("📈 Data Overview")
-        
-        # Simulated Chicago Taxi data statistics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Trips", "2,847,392")
-        with col2:
-            st.metric("Average Fare", "$12.45")
-        with col3:
-            st.metric("Average Tip", "$2.18")
-        with col4:
-            st.metric("Average Tip Rate", "17.5%")
-        
-        # Data analysis options
-        analysis_type = st.selectbox(
-            "Select Analysis Type:",
-            ["Time Trend Analysis", "Geographic Distribution Analysis", "Payment Method Analysis", "Company Performance Comparison"]
-        )
-        
-        if analysis_type == "Time Trend Analysis":
-            st.subheader("⏰ Time Trend Analysis")
-            
-            # Simulated hourly tip data
-            hours = list(range(24))
-            avg_tips = [1.2, 1.1, 1.0, 0.9, 0.8, 1.0, 1.5, 2.1, 2.8, 2.5, 2.3, 2.4, 2.6, 2.5, 2.4, 2.8, 3.2, 3.8, 4.1, 3.9, 3.2, 2.8, 2.1, 1.6]
-            
-            fig_time = px.line(
-                x=hours, 
-                y=avg_tips,
-                title="24-Hour Average Tip Trend",
-                labels={'x': 'Hour', 'y': 'Average Tip ($)'}
-            )
-            fig_time.update_traces(line=dict(color='blue', width=3))
-            st.plotly_chart(fig_time, use_container_width=True)
-            
-            st.info("💡 **Insight**: Evening 6-8 PM is peak tip period, early morning 3-5 AM has lowest tips")
-            
-        elif analysis_type == "Geographic Distribution Analysis":
-            st.subheader("🗺️ Geographic Distribution Analysis")
-            
-            # Simulated community data
-            communities = ['Loop', 'Near North Side', 'Lincoln Park', 'Lakeview', 'Logan Square']
-            avg_tips_geo = [4.2, 3.8, 2.9, 2.5, 2.1]
-            trip_counts = [45000, 38000, 28000, 22000, 18000]
-            
-            fig_geo = px.bar(
-                x=communities,
-                y=avg_tips_geo,
-                title="Average Tip Comparison by Community",
-                labels={'x': 'Community', 'y': 'Average Tip ($)'},
-                color=avg_tips_geo,
-                color_continuous_scale='viridis'
-            )
-            st.plotly_chart(fig_geo, use_container_width=True)
-            
-            st.info("💡 **Insight**: Loop area (business district) has highest tips, averaging over $4")
-            
-        elif analysis_type == "Payment Method Analysis":
-            st.subheader("💳 Payment Method Analysis")
-            
-            # Simulated payment data
-            payment_data = {
-                'Payment Method': ['Credit Card', 'Cash', 'No Charge', 'Dispute'],
-                'Average Tip': [2.85, 0.95, 0.0, 0.12],
-                'Tip Rate': [22.8, 7.6, 0.0, 1.2],
-                'Transaction Count': [1850000, 850000, 120000, 27000]
-            }
-            
-            payment_df = pd.DataFrame(payment_data)
-            
-            col_pay1, col_pay2 = st.columns(2)
-            
-            with col_pay1:
-                fig_payment_tip = px.bar(
-                    payment_df,
-                    x='Payment Method',
-                    y='Average Tip',
-                    title="Average Tip by Payment Method",
-                    color='Average Tip'
+        try:
+            stats_resp = requests.get(f"{API_BASE_URL}/data/stats", timeout=15)
+            if stats_resp.status_code == 200:
+                stats_json = stats_resp.json()
+                stats_data = stats_json.get("data", {})
+                total_rows = stats_json.get("total_rows", 0)
+                
+                # Data overview from real stats
+                st.subheader("📈 Data Overview")
+                fare_stats = stats_data.get("fare", {})
+                tips_stats = stats_data.get("tips", {})
+                miles_stats = stats_data.get("trip_miles", {})
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Trips", f"{total_rows:,}")
+                with col2:
+                    st.metric("Average Fare", f"${fare_stats.get('mean', 0):.2f}")
+                with col3:
+                    st.metric("Average Tip", f"${tips_stats.get('mean', 0):.2f}")
+                with col4:
+                    avg_tip_rate = (tips_stats.get('mean', 0) / fare_stats.get('mean', 1) * 100) if fare_stats.get('mean', 0) > 0 else 0
+                    st.metric("Average Tip Rate", f"{avg_tip_rate:.1f}%")
+                
+                # Data analysis options
+                analysis_type = st.selectbox(
+                    "Select Analysis Type:",
+                    ["Time Trend Analysis", "Fare & Tip Distribution", "Payment Method Analysis", "Company Performance Comparison"]
                 )
-                st.plotly_chart(fig_payment_tip, use_container_width=True)
-            
-            with col_pay2:
-                fig_payment_rate = px.bar(
-                    payment_df,
-                    x='Payment Method',
-                    y='Tip Rate',
-                    title="Tip Rate by Payment Method",
-                    color='Tip Rate'
-                )
-                st.plotly_chart(fig_payment_rate, use_container_width=True)
-            
-            st.info("💡 **Insight**: Credit card payments have significantly higher tips than cash payments")
-            
-        else:  # Company performance comparison
-            st.subheader("🚕 Taxi Company Performance Comparison")
-            
-            # Simulated company data
-            company_data = {
-                'Company': ['Flash Cab', 'Taxi Affiliation Services', 'Yellow Cab', 'Blue Diamond'],
-                'Average Tip': [2.45, 2.12, 1.98, 2.38],
-                'Average Fare': [12.80, 11.95, 12.15, 13.20],
-                'Service Rating': [4.2, 3.8, 3.9, 4.1]
-            }
-            
-            company_df = pd.DataFrame(company_data)
-            
-            # Scatter plot: fare vs tip
-            fig_scatter = px.scatter(
-                company_df, 
-                x='Average Fare', 
-                y='Average Tip',
-                size='Service Rating',
-                color='Company',
-                title="Taxi Company Performance Comparison (Bubble size represents service rating)",
-                labels={'x': 'Average Fare ($)', 'y': 'Average Tip ($)'}
-            )
-            st.plotly_chart(fig_scatter, use_container_width=True)
-            
-            st.dataframe(company_df, use_container_width=True)
-            
-            st.info("💡 **Insight**: Flash Cab performs best in both tips and service rating")
+                
+                if analysis_type == "Time Trend Analysis":
+                    st.subheader("⏰ Time Trend Analysis")
+                    hourly = stats_data.get("hourly", [])
+                    if hourly:
+                        hourly_df = pd.DataFrame(hourly)
+                        col_h1, col_h2 = st.columns(2)
+                        with col_h1:
+                            fig_tips = px.line(hourly_df, x="trip_start_hour", y="avg_tips",
+                                             title="Average Tip by Hour (Real Data)",
+                                             labels={"trip_start_hour": "Hour", "avg_tips": "Average Tip ($)"})
+                            fig_tips.update_traces(line=dict(color='blue', width=3))
+                            st.plotly_chart(fig_tips, use_container_width=True)
+                        with col_h2:
+                            fig_fare = px.bar(hourly_df, x="trip_start_hour", y="avg_fare",
+                                            title="Average Fare by Hour (Real Data)",
+                                            labels={"trip_start_hour": "Hour", "avg_fare": "Average Fare ($)"},
+                                            color="avg_fare", color_continuous_scale="blues")
+                            st.plotly_chart(fig_fare, use_container_width=True)
+                        
+                        fig_count = px.bar(hourly_df, x="trip_start_hour", y="count",
+                                          title="Trip Count by Hour (Real Data)",
+                                          labels={"trip_start_hour": "Hour", "count": "Trip Count"},
+                                          color="count", color_continuous_scale="viridis")
+                        st.plotly_chart(fig_count, use_container_width=True)
+                        
+                        peak_hour = hourly_df.loc[hourly_df["avg_tips"].idxmax()]
+                        low_hour = hourly_df.loc[hourly_df["avg_tips"].idxmin()]
+                        st.info(f"💡 **Insight**: Peak tip hour is **{int(peak_hour['trip_start_hour'])}:00** (avg ${peak_hour['avg_tips']:.2f}), lowest at **{int(low_hour['trip_start_hour'])}:00** (avg ${low_hour['avg_tips']:.2f})")
+                    else:
+                        st.warning("No hourly data available")
+                
+                elif analysis_type == "Fare & Tip Distribution":
+                    st.subheader("� Fare & Tip Distribution")
+                    col_d1, col_d2 = st.columns(2)
+                    with col_d1:
+                        st.markdown("**Fare Statistics**")
+                        fare_df = pd.DataFrame([fare_stats]).T
+                        fare_df.columns = ["Value"]
+                        st.dataframe(fare_df, use_container_width=True)
+                    with col_d2:
+                        st.markdown("**Tip Statistics**")
+                        tips_df = pd.DataFrame([tips_stats]).T
+                        tips_df.columns = ["Value"]
+                        st.dataframe(tips_df, use_container_width=True)
+                    
+                    monthly = stats_data.get("monthly", [])
+                    if monthly:
+                        monthly_df = pd.DataFrame(monthly)
+                        fig_monthly = px.bar(monthly_df, x="trip_start_month", y=["avg_fare", "avg_tips"],
+                                            title="Monthly Average Fare & Tip (Real Data)",
+                                            labels={"trip_start_month": "Month", "value": "Amount ($)"},
+                                            barmode="group")
+                        st.plotly_chart(fig_monthly, use_container_width=True)
+                
+                elif analysis_type == "Payment Method Analysis":
+                    st.subheader("💳 Payment Method Analysis")
+                    by_payment = stats_data.get("by_payment_type", [])
+                    if by_payment:
+                        pay_df = pd.DataFrame(by_payment)
+                        pay_df["tip_rate"] = (pay_df["avg_tips"] / pay_df["avg_fare"].replace(0, np.nan) * 100).fillna(0)
+                        
+                        col_pay1, col_pay2 = st.columns(2)
+                        with col_pay1:
+                            fig_pt = px.bar(pay_df, x="payment_type", y="avg_tips",
+                                           title="Average Tip by Payment Method (Real Data)",
+                                           color="avg_tips", color_continuous_scale="blues")
+                            st.plotly_chart(fig_pt, use_container_width=True)
+                        with col_pay2:
+                            fig_pr = px.bar(pay_df, x="payment_type", y="tip_rate",
+                                           title="Tip Rate by Payment Method (Real Data)",
+                                           color="tip_rate", color_continuous_scale="reds")
+                            st.plotly_chart(fig_pr, use_container_width=True)
+                        
+                        fig_pie = px.pie(pay_df, values="count", names="payment_type",
+                                        title="Trip Count by Payment Method")
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                        st.dataframe(pay_df, use_container_width=True)
+                        
+                        top_pay = pay_df.loc[pay_df["avg_tips"].idxmax()]
+                        st.info(f"💡 **Insight**: **{top_pay['payment_type']}** has the highest average tip (${top_pay['avg_tips']:.2f})")
+                    else:
+                        st.warning("No payment type data available")
+                
+                else:  # Company performance comparison
+                    st.subheader("🚕 Taxi Company Performance Comparison")
+                    by_company = stats_data.get("by_company", [])
+                    if by_company:
+                        co_df = pd.DataFrame(by_company).sort_values("avg_tips", ascending=False).head(10)
+                        
+                        fig_co = px.bar(co_df, x="company", y=["avg_fare", "avg_tips"],
+                                       title="Top 10 Companies: Average Fare & Tip (Real Data)",
+                                       barmode="group")
+                        fig_co.update_layout(xaxis_tickangle=45)
+                        st.plotly_chart(fig_co, use_container_width=True)
+                        
+                        fig_scatter = px.scatter(co_df, x="avg_fare", y="avg_tips", size="count",
+                                               color="company", hover_name="company",
+                                               title="Company Performance (bubble size = trip count)",
+                                               labels={"avg_fare": "Average Fare ($)", "avg_tips": "Average Tip ($)"})
+                        st.plotly_chart(fig_scatter, use_container_width=True)
+                        st.dataframe(co_df, use_container_width=True)
+                        
+                        best = co_df.iloc[0]
+                        st.info(f"💡 **Insight**: **{best['company']}** has the highest average tip (${best['avg_tips']:.2f}) with {int(best['count'])} trips")
+                    else:
+                        st.warning("No company data available")
+            else:
+                st.error(f"Failed to load data stats: HTTP {stats_resp.status_code}")
+        except Exception as e:
+            st.error(f"Failed to load data analysis: {str(e)}")
+            st.info("Please ensure FastAPI service is running")
 
     
     # Tab 4: Performance monitoring
@@ -609,121 +654,149 @@ def main():
         except Exception as e:
             st.error(f"Failed to retrieve monitoring data: {str(e)}")
     
-    # Tab 5: Data drift monitoring
+    # Tab 5: Data drift monitoring (real data from API)
     with tab5:
         st.header("🔍 Data Drift Monitoring")
-        st.markdown("Monitor data distribution changes and feature drift in real-time")
+        st.markdown("Monitor data distribution changes based on **real Chicago Taxi dataset** (baseline vs current split)")
         
-        # Simulated drift monitoring data
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Features Monitored", "16")
-        with col2:
-            st.metric("Drift Detected", "2", delta="-1")
-        with col3:
-            st.metric("Drift Score", "0.23", delta="0.05")
-        with col4:
-            st.metric("Last Check", "5 min ago")
-        
-        st.divider()
-        
-        # Create drift monitoring tabs
-        drift_tab1, drift_tab2, drift_tab3 = st.tabs([
-            "📊 Drift Overview", "📈 Feature Analysis", "⚠️ Alerts & Actions"
-        ])
-        
-        with drift_tab1:
-            st.subheader("Data Drift Overview")
-            
-            # Simulated drift data
-            features = ['trip_miles', 'trip_seconds', 'fare', 'pickup_latitude', 'pickup_longitude', 
-                       'dropoff_latitude', 'dropoff_longitude', 'pickup_hour', 'payment_type', 'company']
-            drift_scores = [random.uniform(0, 0.8) for _ in features]
-            
-            drift_df = pd.DataFrame({
-                'Feature': features,
-                'Drift Score': drift_scores,
-                'Status': ['🔴 High' if score > 0.5 else '🟡 Medium' if score > 0.3 else '🟢 Low' for score in drift_scores]
-            })
-            
-            fig = px.bar(drift_df, x='Feature', y='Drift Score', color='Status',
-                        title="Feature Drift Scores", 
-                        color_discrete_map={'🟢 Low': 'green', '🟡 Medium': 'orange', '🔴 High': 'red'})
-            fig.update_layout(xaxis_tickangle=45)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            st.dataframe(drift_df, use_container_width=True)
-        
-        with drift_tab2:
-            st.subheader("Feature Analysis")
-            
-            selected_feature = st.selectbox("Select feature to analyze:", features)
-            
-            if selected_feature:
-                st.write(f"**Analyzing: {selected_feature}**")
+        try:
+            drift_resp = requests.get(f"{API_BASE_URL}/data/drift", timeout=15)
+            if drift_resp.status_code == 200:
+                drift_data = drift_resp.json()
+                drift_summary = drift_data.get("summary", {})
+                drift_details = drift_data.get("feature_details", {})
+                drift_recs = drift_data.get("recommendations", [])
                 
-                # Simulated distribution comparison
-                col_dist1, col_dist2 = st.columns(2)
+                # Overview metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Features Monitored", drift_summary.get("total_features_checked", 0))
+                with col2:
+                    st.metric("Drift Detected", drift_summary.get("drifted_features_count", 0))
+                with col3:
+                    avg_score = np.mean([v["drift_score"] for v in drift_details.values()]) if drift_details else 0
+                    st.metric("Avg Drift Score", f"{avg_score:.3f}")
+                with col4:
+                    st.metric("Baseline / Current", f"{drift_summary.get('baseline_rows', 0):,} / {drift_summary.get('current_rows', 0):,}")
                 
-                with col_dist1:
-                    st.write("**Reference Distribution**")
-                    ref_data = [random.gauss(10, 2) for _ in range(100)]
-                    fig_ref = px.histogram(x=ref_data, title="Reference Data", nbins=20)
-                    st.plotly_chart(fig_ref, use_container_width=True)
+                st.divider()
                 
-                with col_dist2:
-                    st.write("**Current Distribution**")
-                    current_data = [random.gauss(12, 3) for _ in range(100)]
-                    fig_current = px.histogram(x=current_data, title="Current Data", nbins=20)
-                    st.plotly_chart(fig_current, use_container_width=True)
+                drift_tab1, drift_tab2, drift_tab3 = st.tabs([
+                    "📊 Drift Overview", "📈 Feature Analysis", "⚠️ Alerts & Actions"
+                ])
                 
-                # Drift metrics
-                st.write("**Drift Metrics**")
-                metric_col1, metric_col2, metric_col3 = st.columns(3)
-                with metric_col1:
-                    st.metric("KS Statistic", "0.23")
-                with metric_col2:
-                    st.metric("P-value", "0.001")
-                with metric_col3:
-                    st.metric("Effect Size", "Medium")
-        
-        with drift_tab3:
-            st.subheader("Alerts & Actions")
-            
-            # Alert status
-            if any(score > 0.5 for score in drift_scores):
-                st.error("⚠️ High drift detected in some features!")
+                with drift_tab1:
+                    st.subheader("Data Drift Overview (Real Data)")
+                    
+                    drift_features = list(drift_details.keys())
+                    drift_scores_list = [drift_details[f]["drift_score"] for f in drift_features]
+                    drift_types = [drift_details[f]["drift_type"] for f in drift_features]
+                    
+                    color_map = {"No": "#2E8B57", "Low": "#FFD700", "Medium": "#FF8C00", "High": "#DC143C"}
+                    colors = [color_map.get(dt, "#808080") for dt in drift_types]
+                    
+                    fig_drift = go.Figure(data=[
+                        go.Bar(x=drift_features, y=drift_scores_list, marker_color=colors,
+                               text=[f"{s:.3f} ({t})" for s, t in zip(drift_scores_list, drift_types)],
+                               textposition='auto')
+                    ])
+                    fig_drift.add_hline(y=0.1, line_dash="dash", line_color="red", annotation_text="Drift Threshold (0.1)")
+                    fig_drift.update_layout(title="Feature Drift Scores (Real Data)", xaxis_title="Feature",
+                                           yaxis_title="Drift Score", height=500)
+                    fig_drift.update_xaxes(tickangle=45)
+                    st.plotly_chart(fig_drift, use_container_width=True)
+                    
+                    drift_table = pd.DataFrame({
+                        "Feature": drift_features,
+                        "Drift Score": drift_scores_list,
+                        "Type": drift_types,
+                        "Drifted": [drift_details[f]["is_drifted"] for f in drift_features],
+                    })
+                    st.dataframe(drift_table, use_container_width=True)
                 
-                high_drift_features = [features[i] for i, score in enumerate(drift_scores) if score > 0.5]
-                st.write(f"**Features with high drift:** {', '.join(high_drift_features)}")
+                with drift_tab2:
+                    st.subheader("Feature Analysis (Real Data)")
+                    
+                    selected_drift_feat = st.selectbox("Select feature to analyze:", drift_features, key="drift_feat_select")
+                    
+                    if selected_drift_feat and selected_drift_feat in drift_details:
+                        detail = drift_details[selected_drift_feat]
+                        baseline_s = detail.get("baseline_stats", {})
+                        current_s = detail.get("current_stats", {})
+                        
+                        st.write(f"**Analyzing: {selected_drift_feat}** — Drift Score: **{detail['drift_score']:.3f}** ({detail['drift_type']})")
+                        
+                        if baseline_s.get("type") == "FLOAT":
+                            col_bs, col_cs = st.columns(2)
+                            with col_bs:
+                                st.write("**Baseline Statistics**")
+                                st.json({k: v for k, v in baseline_s.items() if k != "type"})
+                            with col_cs:
+                                st.write("**Current Statistics**")
+                                st.json({k: v for k, v in current_s.items() if k != "type"})
+                            
+                            # Comparison bar chart
+                            compare_metrics = ["mean", "std_dev", "min", "max", "median"]
+                            b_vals = [baseline_s.get(m, 0) for m in compare_metrics]
+                            c_vals = [current_s.get(m, 0) for m in compare_metrics]
+                            fig_comp = go.Figure(data=[
+                                go.Bar(name="Baseline", x=compare_metrics, y=b_vals),
+                                go.Bar(name="Current", x=compare_metrics, y=c_vals),
+                            ])
+                            fig_comp.update_layout(barmode="group", title=f"{selected_drift_feat}: Baseline vs Current")
+                            st.plotly_chart(fig_comp, use_container_width=True)
+                        else:
+                            col_bs, col_cs = st.columns(2)
+                            with col_bs:
+                                st.write("**Baseline Distribution**")
+                                top_vals = baseline_s.get("top_values", [])
+                                if top_vals:
+                                    bdf = pd.DataFrame(top_vals)
+                                    fig_b = px.bar(bdf, x="value", y="frequency", title="Baseline")
+                                    st.plotly_chart(fig_b, use_container_width=True)
+                            with col_cs:
+                                st.write("**Current Distribution**")
+                                top_vals_c = current_s.get("top_values", [])
+                                if top_vals_c:
+                                    cdf = pd.DataFrame(top_vals_c)
+                                    fig_c = px.bar(cdf, x="value", y="frequency", title="Current")
+                                    st.plotly_chart(fig_c, use_container_width=True)
                 
-                st.write("**Recommended Actions:**")
-                st.write("- 🔍 Investigate data collection process")
-                st.write("- 📊 Review feature engineering pipeline")
-                st.write("- 🎯 Consider model retraining")
-                st.write("- 📧 Notify data science team")
-                
-                if st.button("🚨 Trigger Alert"):
-                    st.success("Alert sent to monitoring system!")
+                with drift_tab3:
+                    st.subheader("Alerts & Actions")
+                    
+                    drifted_feats = [f for f in drift_features if drift_details[f]["is_drifted"]]
+                    if drifted_feats:
+                        st.error(f"⚠️ Drift detected in {len(drifted_feats)} feature(s)!")
+                        st.write(f"**Drifted features:** {', '.join(drifted_feats)}")
+                    else:
+                        st.success("✅ All features within acceptable drift thresholds")
+                    
+                    st.write("**Recommendations:**")
+                    for rec in drift_recs:
+                        st.write(f"- {rec}")
+                    
+                    col_action1, col_action2 = st.columns(2)
+                    with col_action1:
+                        if st.button("🔄 Refresh Drift Analysis"):
+                            st.rerun()
+                    with col_action2:
+                        report_md = f"# Data Drift Report\n\n**Generated:** {datetime.now().isoformat()}\n\n"
+                        report_md += f"**Total Features:** {drift_summary.get('total_features_checked', 0)}\n"
+                        report_md += f"**Drifted Features:** {drift_summary.get('drifted_features_count', 0)}\n\n"
+                        for f, d in drift_details.items():
+                            report_md += f"## {f}\n- Score: {d['drift_score']}\n- Type: {d['drift_type']}\n- Drifted: {d['is_drifted']}\n\n"
+                        st.download_button(
+                            label="📥 Download Drift Report",
+                            data=report_md,
+                            file_name=f"drift_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.md",
+                            mime="text/markdown"
+                        )
             else:
-                st.success("✅ All features within acceptable drift thresholds")
-            
-            # Manual actions
-            st.write("**Manual Actions**")
-            col_action1, col_action2 = st.columns(2)
-            
-            with col_action1:
-                if st.button("🔄 Refresh Drift Analysis"):
-                    st.info("Drift analysis refreshed!")
-            
-            with col_action2:
-                if st.button("📊 Generate Drift Report"):
-                    st.download_button(
-                        label="📥 Download Report",
-                        data="# Data Drift Report\n\nGenerated drift analysis report...",
-                        file_name=f"drift_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.md",
-                        mime="text/markdown"
-                    )
+                st.error(f"Failed to load drift data: HTTP {drift_resp.status_code}")
+        except Exception as e:
+            st.error(f"Failed to load drift monitoring: {str(e)}")
+            st.info("Please ensure FastAPI service is running")
     
     # Tab 6: Feast feature store
     with tab6:

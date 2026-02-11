@@ -4,6 +4,7 @@ Streamlit UI Kafka 流处理集成模块
 为 Streamlit 应用提供 Kafka 流处理的可视化和管理功能
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -432,4 +433,4 @@ class KafkaUIIntegration:
 
 
 # 全局实例
-kafka_ui = KafkaUIIntegration()
+kafka_ui = KafkaUIIntegration(api_base_url=os.getenv("API_BASE_URL", "http://localhost:8000"))

@@ -4,6 +4,7 @@ MLMD (ML Metadata) Streamlit UI 集成
 提供数据血缘追踪和元数据管理的可视化界面
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -589,8 +590,10 @@ class MLMDUIIntegration:
 
 
 # 全局实例
-def get_mlmd_ui_integration(api_base_url: str = "http://localhost:8000") -> MLMDUIIntegration:
+def get_mlmd_ui_integration(api_base_url: str = None) -> MLMDUIIntegration:
     """获取 MLMD UI 集成实例"""
+    if api_base_url is None:
+        api_base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
     return MLMDUIIntegration(api_base_url)
 
 

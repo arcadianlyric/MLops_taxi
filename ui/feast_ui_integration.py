@@ -4,6 +4,7 @@ Streamlit UI Feast 特征存储集成模块
 为 Streamlit 应用提供 Feast 特征存储的可视化和交互功能
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -576,4 +577,4 @@ class FeastUIIntegration:
 
 
 # 全局实例
-feast_ui = FeastUIIntegration()
+feast_ui = FeastUIIntegration(api_base_url=os.getenv("API_BASE_URL", "http://localhost:8000"))

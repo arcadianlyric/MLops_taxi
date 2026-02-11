@@ -1,0 +1,35 @@
+{
+  "model_type": "GradientBoostingRegressor",
+  "n_estimators": 200,
+  "max_depth": 5,
+  "feature_cols": [
+    "fare",
+    "trip_miles",
+    "trip_seconds",
+    "pickup_community_area",
+    "dropoff_community_area",
+    "trip_start_hour",
+    "trip_start_day",
+    "trip_start_month",
+    "payment_type_enc",
+    "company_enc"
+  ],
+  "train_samples": 12001,
+  "test_samples": 3001,
+  "train_mae": 0.2882,
+  "test_mae": 0.3593,
+  "train_r2": 0.8726,
+  "test_r2": 0.7954,
+  "feature_importances": {
+    "fare": 0.35144937912382485,
+    "trip_miles": 0.017232874839684484,
+    "trip_seconds": 0.01320735947569814,
+    "pickup_community_area": 0.011269177328174911,
+    "dropoff_community_area": 0.016159661535643858,
+    "trip_start_hour": 0.009166949331521965,
+    "trip_start_day": 0.002567604528586281,
+    "trip_start_month": 0.003499375081384749,
+    "payment_type_enc": 0.5717768934987868,
+    "company_enc": 0.0036707252566940693
+  }
+}

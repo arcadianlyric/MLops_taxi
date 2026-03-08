@@ -1,0 +1,54 @@
+{{- if .Values.mlflow.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - port: {{ .Values.mlflow.port }}
+      targetPort: {{ .Values.mlflow.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.mlflow.replicas }}
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.mlflow.port }}
+        command: ["mlflow"]
+        args: ["server", "--host", "0.0.0.0", "--port", "{{ .Values.mlflow.port }}", "--backend-store-uri", "{{ .Values.mlflow.backendStore }}", "--workers", "1"]
+        resources:
+          requests:
+            memory: {{ .Values.mlflow.resources.requests.memory }}
+            cpu: {{ .Values.mlflow.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.mlflow.resources.limits.memory }}
+            cpu: {{ .Values.mlflow.resources.limits.cpu }}
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.mlflow.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.mlflow.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+{{- end }}

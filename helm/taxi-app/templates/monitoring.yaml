@@ -1,0 +1,161 @@
+{{- if .Values.monitoring.enabled }}
+{{- if .Values.monitoring.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: {{ .Values.namespace }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    scrape_configs:
+      - job_name: 'fastapi'
+        metrics_path: '/metrics/prometheus'
+        static_configs:
+          - targets: ['fastapi-service:{{ .Values.fastapi.port }}']
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+    rule_files:
+      - '/etc/prometheus/alerts.yml'
+  alerts.yml: |
+    groups:
+      - name: taxi-model-alerts
+        rules:
+          - alert: ModelHighLatency
+            expr: histogram_quantile(0.95, rate(model_prediction_latency_seconds_bucket[5m])) > 1.0
+            for: 5m
+            labels:
+              severity: warning
+          - alert: DataDriftDetected
+            expr: data_drift_score > 0.5
+            for: 15m
+            labels:
+              severity: warning
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: {{ .Values.monitoring.prometheus.port }}
+      targetPort: {{ .Values.monitoring.prometheus.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.48.1
+        ports:
+        - containerPort: {{ .Values.monitoring.prometheus.port }}
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.retention.time={{ .Values.monitoring.prometheus.retention }}'
+          - '--web.enable-lifecycle'
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        resources:
+          requests:
+            memory: {{ .Values.monitoring.prometheus.resources.requests.memory }}
+            cpu: {{ .Values.monitoring.prometheus.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.monitoring.prometheus.resources.limits.memory }}
+            cpu: {{ .Values.monitoring.prometheus.resources.limits.cpu }}
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+{{- end }}
+{{- if .Values.monitoring.grafana.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: {{ .Values.namespace }}
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-service:{{ .Values.monitoring.prometheus.port }}
+        isDefault: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: {{ .Values.monitoring.grafana.port }}
+      targetPort: {{ .Values.monitoring.grafana.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.2.3
+        ports:
+        - containerPort: {{ .Values.monitoring.grafana.port }}
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: {{ .Values.monitoring.grafana.adminPassword | quote }}
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: {{ .Values.monitoring.grafana.anonymousAccess | quote }}
+        - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+          value: "Viewer"
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+          subPath: datasources.yaml
+        resources:
+          requests:
+            memory: {{ .Values.monitoring.grafana.resources.requests.memory }}
+            cpu: {{ .Values.monitoring.grafana.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.monitoring.grafana.resources.limits.memory }}
+            cpu: {{ .Values.monitoring.grafana.resources.limits.cpu }}
+      volumes:
+      - name: datasources
+        configMap:
+          name: grafana-datasources
+{{- end }}
+{{- end }}

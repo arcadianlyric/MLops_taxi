@@ -1,0 +1,15 @@
+apiVersion: v2
+name: taxi-app
+description: Chicago Taxi Tip Prediction MLOps Platform
+type: application
+version: 3.0.0
+appVersion: "3.0.0"
+keywords:
+  - mlops
+  - machine-learning
+  - kubernetes
+  - fastapi
+  - prometheus
+  - grafana
+maintainers:
+  - name: arcadianlyric

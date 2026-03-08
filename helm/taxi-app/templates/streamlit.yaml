@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: streamlit
+  ports:
+    - port: {{ .Values.streamlit.port }}
+      targetPort: {{ .Values.streamlit.port }}
+      nodePort: {{ .Values.streamlit.nodePort }}
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.streamlit.replicas }}
+  selector:
+    matchLabels:
+      app: streamlit
+  template:
+    metadata:
+      labels:
+        app: streamlit
+    spec:
+      containers:
+      - name: streamlit
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.streamlit.port }}
+        command: ["streamlit"]
+        args: ["run", "ui/streamlit_app.py", "--server.port", "{{ .Values.streamlit.port }}", "--server.headless", "true", "--server.address", "0.0.0.0"]
+        env:
+        {{- range $key, $value := .Values.streamlit.env }}
+        - name: {{ $key }}
+          value: "{{ $value }}"
+        {{- end }}
+        resources:
+          requests:
+            memory: {{ .Values.streamlit.resources.requests.memory }}
+            cpu: {{ .Values.streamlit.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.streamlit.resources.limits.memory }}
+            cpu: {{ .Values.streamlit.resources.limits.cpu }}

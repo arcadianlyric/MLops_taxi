@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: fastapi
+  ports:
+    - port: {{ .Values.fastapi.port }}
+      targetPort: {{ .Values.fastapi.port }}
+      nodePort: {{ .Values.fastapi.nodePort }}
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.fastapi.replicas }}
+  selector:
+    matchLabels:
+      app: fastapi
+  template:
+    metadata:
+      labels:
+        app: fastapi
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics/prometheus"
+        prometheus.io/port: "{{ .Values.fastapi.port }}"
+    spec:
+      containers:
+      - name: fastapi
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.fastapi.port }}
+        command: ["uvicorn"]
+        args: ["api.taxi_full_api:app", "--host", "0.0.0.0", "--port", "{{ .Values.fastapi.port }}"]
+        env:
+        {{- range $key, $value := .Values.fastapi.env }}
+        - name: {{ $key }}
+          value: "{{ $value }}"
+        {{- end }}
+        resources:
+          requests:
+            memory: {{ .Values.fastapi.resources.requests.memory }}
+            cpu: {{ .Values.fastapi.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.fastapi.resources.limits.memory }}
+            cpu: {{ .Values.fastapi.resources.limits.cpu }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.fastapi.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.fastapi.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 5

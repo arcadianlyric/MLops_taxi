@@ -1,0 +1,77 @@
+# Default values for taxi-app Helm chart
+
+namespace: taxi-app
+
+image:
+  repository: taxi-app
+  tag: latest
+  pullPolicy: Never  # minikube uses local images
+
+fastapi:
+  replicas: 1
+  port: 8000
+  nodePort: 30800
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "300m"
+    limits:
+      memory: "1Gi"
+      cpu: "800m"
+  env:
+    MLFLOW_TRACKING_URI: "http://mlflow-service:5000"
+    RETRAIN_COOLDOWN_MINUTES: "30"
+    DRIFT_RETRAIN_THRESHOLD: "0.3"
+
+streamlit:
+  replicas: 1
+  port: 8501
+  nodePort: 30851
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env:
+    API_BASE_URL: "http://fastapi-service:8000"
+
+mlflow:
+  enabled: true
+  replicas: 1
+  port: 5000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+  backendStore: "sqlite:///mlflow.db"
+
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+    retention: "7d"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+  grafana:
+    enabled: true
+    port: 3000
+    adminPassword: "admin"
+    anonymousAccess: true
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"

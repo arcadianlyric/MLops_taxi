@@ -1,0 +1,294 @@
+# Prometheus + Grafana deployment for taxi-app monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: taxi-app
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    scrape_configs:
+      - job_name: 'fastapi'
+        metrics_path: '/metrics/prometheus'
+        static_configs:
+          - targets: ['fastapi-service:8000']
+            labels:
+              app: 'taxi-tip-prediction'
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+    rule_files:
+      - '/etc/prometheus/alerts.yml'
+  alerts.yml: |
+    groups:
+      - name: taxi-model-alerts
+        rules:
+          - alert: ModelHighLatency
+            expr: histogram_quantile(0.95, rate(model_prediction_latency_seconds_bucket[5m])) > 1.0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Model prediction P95 latency > 1s"
+          - alert: ModelAccuracyDrop
+            expr: model_accuracy{metric="r2"} < 0.6
+            for: 10m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Model R2 dropped below 0.6"
+          - alert: DataDriftDetected
+            expr: data_drift_score > 0.5
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Data drift score > 0.5 on {{ $labels.feature }}"
+          - alert: HighErrorRate
+            expr: rate(model_prediction_total{status="error"}[5m]) > 0.05
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Prediction error rate > 5%"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: taxi-app
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: taxi-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.48.1
+        ports:
+        - containerPort: 9090
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.retention.time=7d'
+          - '--web.enable-lifecycle'
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: taxi-app
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-service:9090
+        isDefault: true
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        folder: MLOps
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: taxi-app
+data:
+  taxi-model-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "Taxi Tip Prediction - Model Monitoring",
+        "tags": ["mlops", "taxi"],
+        "timezone": "browser",
+        "refresh": "30s",
+        "panels": [
+          {
+            "id": 1, "title": "Prediction QPS",
+            "type": "stat",
+            "targets": [{"expr": "sum(rate(model_prediction_total[5m]))"}],
+            "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2, "title": "P95 Latency (ms)",
+            "type": "gauge",
+            "targets": [{"expr": "histogram_quantile(0.95, rate(model_prediction_latency_seconds_bucket[5m])) * 1000"}],
+            "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0}
+          },
+          {
+            "id": 3, "title": "Model R2 Score",
+            "type": "stat",
+            "targets": [{"expr": "model_accuracy{model_name='sklearn_gb', metric='r2'}"}],
+            "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0}
+          },
+          {
+            "id": 4, "title": "Drift Scores",
+            "type": "bargauge",
+            "targets": [{"expr": "data_drift_score", "legendFormat": "{{feature}}"}],
+            "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0}
+          },
+          {
+            "id": 5, "title": "Prediction Latency Over Time",
+            "type": "timeseries",
+            "targets": [
+              {"expr": "histogram_quantile(0.50, rate(model_prediction_latency_seconds_bucket[5m])) * 1000", "legendFormat": "P50"},
+              {"expr": "histogram_quantile(0.95, rate(model_prediction_latency_seconds_bucket[5m])) * 1000", "legendFormat": "P95"},
+              {"expr": "histogram_quantile(0.99, rate(model_prediction_latency_seconds_bucket[5m])) * 1000", "legendFormat": "P99"}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6}
+          },
+          {
+            "id": 6, "title": "Predictions by Model Type",
+            "type": "piechart",
+            "targets": [{"expr": "sum by (model_type) (model_prediction_total)", "legendFormat": "{{model_type}}"}],
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 6}
+          },
+          {
+            "id": 7, "title": "A/B Test Assignments",
+            "type": "timeseries",
+            "targets": [{"expr": "sum by (variant) (rate(ab_test_assignment_total[5m]))", "legendFormat": "{{variant}}"}],
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 6}
+          },
+          {
+            "id": 8, "title": "Retrain Triggers",
+            "type": "stat",
+            "targets": [{"expr": "sum(retrain_trigger_total)"}],
+            "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14}
+          }
+        ]
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: taxi-app
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: taxi-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.2.3
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "true"
+        - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+          value: "Viewer"
+        volumeMounts:
+        - name: provisioning-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: provisioning-dashboards
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: provisioning-datasources
+        configMap:
+          name: grafana-provisioning
+          items:
+          - key: datasources.yaml
+            path: datasources.yaml
+      - name: provisioning-dashboards
+        configMap:
+          name: grafana-provisioning
+          items:
+          - key: dashboards.yaml
+            path: dashboards.yaml
+      - name: dashboards
+        configMap:
+          name: grafana-dashboards

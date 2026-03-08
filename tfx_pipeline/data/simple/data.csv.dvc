@@ -1,0 +1,11 @@
+outs:
+- md5: null
+  size: null
+  path: data.csv
+  desc: Chicago Taxi trip data (15,002 rows). Source: Chicago Data Portal.
+meta:
+  version: v1.0
+  rows: 15002
+  features: 23
+  label: tips
+  source: https://data.cityofchicago.org/Transportation/Taxi-Trips/wrvz-psew

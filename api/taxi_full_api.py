@@ -17,6 +17,16 @@ import json
 import os
 import random
 import hashlib
+import time
+import threading
+
+# Prometheus metrics
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    from prometheus_client import Counter, Histogram, Gauge, Info
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
 
 # TensorFlow model loading
 try:
@@ -118,12 +128,64 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------------------------------------------------------------------
+# Prometheus custom metrics
+# ---------------------------------------------------------------------------
+if PROMETHEUS_AVAILABLE:
+    PREDICTION_LATENCY = Histogram(
+        "model_prediction_latency_seconds",
+        "Prediction latency in seconds",
+        ["model_type"],
+        buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+    )
+    PREDICTION_COUNT = Counter(
+        "model_prediction_total",
+        "Total prediction requests",
+        ["model_type", "status"],
+    )
+    DRIFT_SCORE_GAUGE = Gauge(
+        "data_drift_score",
+        "Current drift score per feature",
+        ["feature"],
+    )
+    MODEL_ACCURACY_GAUGE = Gauge(
+        "model_accuracy",
+        "Current model accuracy metric",
+        ["model_name", "metric"],
+    )
+    AB_ASSIGNMENT_COUNT = Counter(
+        "ab_test_assignment_total",
+        "A/B test assignments",
+        ["experiment", "variant"],
+    )
+    RETRAIN_TRIGGER_COUNT = Counter(
+        "retrain_trigger_total",
+        "Number of auto-retrain triggers",
+        ["reason"],
+    )
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics/prometheus")
+
+# ---------------------------------------------------------------------------
+# A/B Testing state
+# ---------------------------------------------------------------------------
+_ab_experiments: Dict[str, Dict[str, Any]] = {}
+_ab_results: Dict[str, List[Dict]] = {}
+
+# ---------------------------------------------------------------------------
+# Auto-retrain state
+# ---------------------------------------------------------------------------
+_retrain_lock = threading.Lock()
+_last_retrain_time: Optional[datetime] = None
+RETRAIN_COOLDOWN_MINUTES = int(os.environ.get("RETRAIN_COOLDOWN_MINUTES", "30"))
+DRIFT_RETRAIN_THRESHOLD = float(os.environ.get("DRIFT_RETRAIN_THRESHOLD", "0.3"))
+
 
 @app.on_event("startup")
 async def startup():
     _load_data()
     _load_tf_model()
     _connect_mlflow()
+    _init_default_ab_experiment()
 
 
 def _connect_mlflow():
@@ -212,6 +274,29 @@ def _load_tf_model():
             logger.warning(f"Failed to load sklearn model: {e}")
     if _tf_model is None and _sklearn_model is None:
         logger.warning("No ML model loaded – using rule-based prediction")
+    # Publish accuracy to Prometheus
+    if PROMETHEUS_AVAILABLE:
+        if _sklearn_meta:
+            MODEL_ACCURACY_GAUGE.labels(model_name="sklearn_gb", metric="r2").set(_sklearn_meta.get("test_r2", 0))
+            MODEL_ACCURACY_GAUGE.labels(model_name="sklearn_gb", metric="mae").set(_sklearn_meta.get("test_mae", 0))
+        if _model_meta:
+            MODEL_ACCURACY_GAUGE.labels(model_name="tf_wide_deep", metric="accuracy").set(_model_meta.get("test_accuracy", 0))
+            MODEL_ACCURACY_GAUGE.labels(model_name="tf_wide_deep", metric="auc").set(_model_meta.get("test_auc", 0))
+
+
+def _init_default_ab_experiment():
+    """Create a default A/B experiment on startup."""
+    _ab_experiments["tip-model-v1"] = {
+        "name": "tip-model-v1",
+        "variants": {
+            "control": {"model": "sklearn", "weight": 0.8},
+            "treatment": {"model": "rule_based", "weight": 0.2},
+        },
+        "status": "running",
+        "created_at": datetime.now().isoformat(),
+        "total_assignments": 0,
+    }
+    logger.info("Default A/B experiment 'tip-model-v1' initialized (80/20 split)")
 
 
 # ===== Pydantic models =====
@@ -344,21 +429,41 @@ def _predict_rule_based(trip: TaxiTripRequest) -> float:
     return round(max(0, predicted_tip + noise), 2)
 
 
-def predict_tip(trip: TaxiTripRequest) -> float:
+def predict_tip(trip: TaxiTripRequest, force_model: str = None) -> float:
     global prediction_count
     prediction_count += 1
-    # Priority: TF model > sklearn model > rule-based
-    if _tf_model is not None and _model_meta is not None:
-        try:
-            return _predict_with_tf(trip)
-        except Exception as e:
-            logger.error(f"TF prediction failed: {e}")
-    if _sklearn_model is not None:
-        try:
+    t0 = time.time()
+    model_used = "rule_based"
+    status = "ok"
+    try:
+        if force_model == "rule_based":
+            return _predict_rule_based(trip)
+        if force_model == "sklearn" and _sklearn_model is not None:
+            model_used = "sklearn"
             return _predict_with_sklearn(trip)
-        except Exception as e:
-            logger.error(f"sklearn prediction failed: {e}")
-    return _predict_rule_based(trip)
+        # Priority: TF model > sklearn model > rule-based
+        if _tf_model is not None and _model_meta is not None:
+            try:
+                model_used = "tensorflow"
+                return _predict_with_tf(trip)
+            except Exception as e:
+                logger.error(f"TF prediction failed: {e}")
+        if _sklearn_model is not None:
+            try:
+                model_used = "sklearn"
+                return _predict_with_sklearn(trip)
+            except Exception as e:
+                logger.error(f"sklearn prediction failed: {e}")
+        model_used = "rule_based"
+        return _predict_rule_based(trip)
+    except Exception as e:
+        status = "error"
+        raise
+    finally:
+        elapsed = time.time() - t0
+        if PROMETHEUS_AVAILABLE:
+            PREDICTION_LATENCY.labels(model_type=model_used).observe(elapsed)
+            PREDICTION_COUNT.labels(model_type=model_used, status=status).inc()
 
 
 # ===================================================================
@@ -369,13 +474,15 @@ def predict_tip(trip: TaxiTripRequest) -> float:
 async def root():
     return {
         "message": "Chicago Taxi Tip Prediction API",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "endpoints": {
             "health": "/health", "predict": "/predict",
             "batch_predict": "/batch_predict", "docs": "/docs",
             "feast": "/feast/*", "kafka": "/kafka/*",
             "mlflow": "/mlflow/*", "mlmd": "/mlmd/*",
             "data_stats": "/data/stats", "data_drift": "/data/drift",
+            "ab_testing": "/ab/*", "retrain": "/retrain/*",
+            "prometheus": "/metrics/prometheus",
         },
     }
 
@@ -1395,6 +1502,228 @@ async def mlmd_export_report():
         "message": "Lineage report generated",
         "report_path": "mlmd/lineage_report.json",
         "estimated_completion": "complete",
+    }
+
+
+# ===================================================================
+# A/B TESTING
+# ===================================================================
+
+class ABExperimentCreate(BaseModel):
+    name: str = Field(..., description="Experiment name")
+    variants: Dict[str, Dict[str, Any]] = Field(..., description="Variant config: {name: {model, weight}}")
+
+@app.get("/ab/experiments")
+async def ab_list_experiments():
+    return {"experiments": list(_ab_experiments.values()), "count": len(_ab_experiments)}
+
+@app.post("/ab/experiments")
+async def ab_create_experiment(exp: ABExperimentCreate):
+    if exp.name in _ab_experiments:
+        raise HTTPException(400, f"Experiment '{exp.name}' already exists")
+    total_weight = sum(v.get("weight", 0) for v in exp.variants.values())
+    if abs(total_weight - 1.0) > 0.01:
+        raise HTTPException(400, f"Variant weights must sum to 1.0, got {total_weight}")
+    _ab_experiments[exp.name] = {
+        "name": exp.name,
+        "variants": exp.variants,
+        "status": "running",
+        "created_at": datetime.now().isoformat(),
+        "total_assignments": 0,
+    }
+    _ab_results[exp.name] = []
+    return {"status": "created", "experiment": _ab_experiments[exp.name]}
+
+@app.get("/ab/experiments/{name}")
+async def ab_get_experiment(name: str):
+    if name not in _ab_experiments:
+        raise HTTPException(404, f"Experiment '{name}' not found")
+    exp = _ab_experiments[name]
+    results = _ab_results.get(name, [])
+    variant_stats = {}
+    for r in results:
+        v = r["variant"]
+        if v not in variant_stats:
+            variant_stats[v] = {"count": 0, "total_tip": 0.0, "latencies": []}
+        variant_stats[v]["count"] += 1
+        variant_stats[v]["total_tip"] += r.get("tip", 0)
+        variant_stats[v]["latencies"].append(r.get("latency_ms", 0))
+    for v, s in variant_stats.items():
+        s["avg_tip"] = round(s["total_tip"] / max(s["count"], 1), 3)
+        s["avg_latency_ms"] = round(sum(s["latencies"]) / max(len(s["latencies"]), 1), 2)
+        del s["latencies"]
+    return {"experiment": exp, "variant_stats": variant_stats}
+
+@app.post("/ab/predict")
+async def ab_predict(trip: TaxiTripRequest, experiment: str = "tip-model-v1"):
+    if experiment not in _ab_experiments:
+        raise HTTPException(404, f"Experiment '{experiment}' not found")
+    exp = _ab_experiments[experiment]
+    if exp["status"] != "running":
+        raise HTTPException(400, f"Experiment '{experiment}' is not running")
+    # Weighted random variant selection
+    rand = random.random()
+    cumulative = 0.0
+    selected_variant = None
+    selected_model = None
+    for vname, vconfig in exp["variants"].items():
+        cumulative += vconfig.get("weight", 0)
+        if rand <= cumulative:
+            selected_variant = vname
+            selected_model = vconfig.get("model", "sklearn")
+            break
+    if selected_variant is None:
+        selected_variant = list(exp["variants"].keys())[0]
+        selected_model = exp["variants"][selected_variant].get("model", "sklearn")
+    exp["total_assignments"] += 1
+    if PROMETHEUS_AVAILABLE:
+        AB_ASSIGNMENT_COUNT.labels(experiment=experiment, variant=selected_variant).inc()
+    t0 = time.time()
+    tip = predict_tip(trip, force_model=selected_model)
+    latency_ms = round((time.time() - t0) * 1000, 2)
+    result = {
+        "variant": selected_variant, "model": selected_model,
+        "tip": tip, "latency_ms": latency_ms, "timestamp": datetime.now().isoformat(),
+    }
+    _ab_results.setdefault(experiment, []).append(result)
+    return {
+        "experiment": experiment,
+        "variant": selected_variant,
+        "model_used": selected_model,
+        "predicted_tip": tip,
+        "tip_percentage": round(tip / trip.fare * 100, 1) if trip.fare > 0 else 0,
+        "latency_ms": latency_ms,
+    }
+
+@app.delete("/ab/experiments/{name}")
+async def ab_stop_experiment(name: str):
+    if name not in _ab_experiments:
+        raise HTTPException(404, f"Experiment '{name}' not found")
+    _ab_experiments[name]["status"] = "stopped"
+    _ab_experiments[name]["stopped_at"] = datetime.now().isoformat()
+    return {"status": "stopped", "experiment": _ab_experiments[name]}
+
+
+# ===================================================================
+# AUTO-RETRAIN
+# ===================================================================
+
+def _retrain_sklearn_model() -> Dict[str, Any]:
+    """Retrain sklearn model in-process and reload. Returns new metadata."""
+    global _sklearn_model, _sklearn_meta
+    import subprocess, sys
+    train_script = os.path.join(os.path.dirname(__file__), "train_model.py")
+    if not os.path.exists(train_script):
+        raise RuntimeError(f"Training script not found: {train_script}")
+    result = subprocess.run(
+        [sys.executable, train_script],
+        capture_output=True, text=True, timeout=120,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Training failed: {result.stderr[-500:]}")
+    # Reload model
+    import joblib
+    bundle = joblib.load(SKLEARN_MODEL_PATH)
+    _sklearn_model = bundle["model"]
+    if os.path.exists(SKLEARN_META_PATH):
+        with open(SKLEARN_META_PATH) as f:
+            _sklearn_meta = json.load(f)
+    if PROMETHEUS_AVAILABLE and _sklearn_meta:
+        MODEL_ACCURACY_GAUGE.labels(model_name="sklearn_gb", metric="r2").set(_sklearn_meta.get("test_r2", 0))
+        MODEL_ACCURACY_GAUGE.labels(model_name="sklearn_gb", metric="mae").set(_sklearn_meta.get("test_mae", 0))
+    # Log to MLflow
+    if _mlflow_connected and MLFLOW_AVAILABLE:
+        try:
+            exp = _mlflow_client.get_experiment_by_name("chicago-taxi-tip-prediction")
+            exp_id = exp.experiment_id if exp else _mlflow_client.create_experiment("chicago-taxi-tip-prediction")
+            with mlflow.start_run(experiment_id=exp_id, run_name=f"retrain-{datetime.now().strftime('%Y%m%d-%H%M%S')}"):
+                mlflow.log_params({"trigger": "auto-retrain", "model_type": "GradientBoostingRegressor"})
+                for k in ["test_r2", "test_mae", "train_r2", "train_mae"]:
+                    if k in _sklearn_meta:
+                        mlflow.log_metric(k, float(_sklearn_meta[k]))
+        except Exception as e:
+            logger.warning(f"Failed to log retrain to MLflow: {e}")
+    logger.info(f"Retrain complete: R²={_sklearn_meta.get('test_r2')}, MAE={_sklearn_meta.get('test_mae')}")
+    return _sklearn_meta
+
+@app.post("/retrain/trigger")
+async def retrain_trigger(background_tasks: BackgroundTasks, reason: str = "manual"):
+    global _last_retrain_time
+    if _last_retrain_time and (datetime.now() - _last_retrain_time).total_seconds() < RETRAIN_COOLDOWN_MINUTES * 60:
+        remaining = RETRAIN_COOLDOWN_MINUTES - (datetime.now() - _last_retrain_time).total_seconds() / 60
+        raise HTTPException(429, f"Retrain cooldown active. Retry in {remaining:.0f} minutes.")
+    if not _retrain_lock.acquire(blocking=False):
+        raise HTTPException(409, "Retrain already in progress")
+    _last_retrain_time = datetime.now()
+    if PROMETHEUS_AVAILABLE:
+        RETRAIN_TRIGGER_COUNT.labels(reason=reason).inc()
+    def _do_retrain():
+        try:
+            _retrain_sklearn_model()
+        except Exception as e:
+            logger.error(f"Retrain failed: {e}")
+        finally:
+            _retrain_lock.release()
+    background_tasks.add_task(_do_retrain)
+    return {"status": "retrain_started", "reason": reason, "triggered_at": datetime.now().isoformat()}
+
+@app.get("/retrain/status")
+async def retrain_status():
+    return {
+        "last_retrain": _last_retrain_time.isoformat() if _last_retrain_time else None,
+        "retrain_in_progress": _retrain_lock.locked(),
+        "cooldown_minutes": RETRAIN_COOLDOWN_MINUTES,
+        "drift_threshold": DRIFT_RETRAIN_THRESHOLD,
+        "model_meta": _sklearn_meta,
+    }
+
+@app.post("/retrain/auto-check")
+async def retrain_auto_check(background_tasks: BackgroundTasks):
+    """Check drift scores and trigger retrain if above threshold."""
+    global _last_retrain_time
+    df = _load_data()
+    if df.empty:
+        return {"action": "skip", "reason": "no data"}
+    mid = len(df) // 2
+    baseline, current = df.iloc[:mid], df.iloc[mid:]
+    num_features = ["trip_miles", "fare", "trip_seconds"]
+    max_drift = 0.0
+    drifted_features = []
+    for feat in num_features:
+        b = pd.to_numeric(baseline[feat], errors="coerce").dropna()
+        c = pd.to_numeric(current[feat], errors="coerce").dropna()
+        if len(b) == 0 or len(c) == 0:
+            continue
+        score = min(abs(b.mean() - c.mean()) / max((b.std() + c.std()) / 2, 1e-6), 1.0)
+        if PROMETHEUS_AVAILABLE:
+            DRIFT_SCORE_GAUGE.labels(feature=feat).set(score)
+        if score > DRIFT_RETRAIN_THRESHOLD:
+            drifted_features.append({"feature": feat, "score": round(score, 3)})
+        max_drift = max(max_drift, score)
+    if not drifted_features:
+        return {"action": "skip", "reason": "drift below threshold", "max_drift": round(max_drift, 3), "threshold": DRIFT_RETRAIN_THRESHOLD}
+    # Trigger retrain
+    if _last_retrain_time and (datetime.now() - _last_retrain_time).total_seconds() < RETRAIN_COOLDOWN_MINUTES * 60:
+        return {"action": "skip", "reason": "cooldown active", "drifted_features": drifted_features}
+    if not _retrain_lock.acquire(blocking=False):
+        return {"action": "skip", "reason": "retrain already in progress"}
+    _last_retrain_time = datetime.now()
+    if PROMETHEUS_AVAILABLE:
+        RETRAIN_TRIGGER_COUNT.labels(reason="auto_drift").inc()
+    def _do_retrain():
+        try:
+            _retrain_sklearn_model()
+        except Exception as e:
+            logger.error(f"Auto-retrain failed: {e}")
+        finally:
+            _retrain_lock.release()
+    background_tasks.add_task(_do_retrain)
+    return {
+        "action": "retrain_triggered",
+        "reason": "drift_detected",
+        "drifted_features": drifted_features,
+        "max_drift": round(max_drift, 3),
+        "threshold": DRIFT_RETRAIN_THRESHOLD,
     }
 
 

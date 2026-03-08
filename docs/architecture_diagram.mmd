@@ -1,85 +1,84 @@
-```mermaid
 graph TD
-    %% 用户交互层
-    A[用户] -->|交互| B(Streamlit UI)
-    B -->|API 调用| C(FastAPI API)
+    %% User Interaction Layer
+    A[User] -->|Interact| B(Streamlit UI)
+    B -->|API Call| C(FastAPI API)
     
-    %% 推理服务层
-    C -->|模型推理| D(KFServing: Taxi 预测模型)
-    C -->|特征获取| F(Feast: 在线存储 Redis)
-    C -->|模型管理| T(MLflow: 模型注册中心)
-    C -->|流处理| G(Kafka: 消息队列)
+    %% Inference Service Layer
+    C -->|Model Inference| D(KFServing: Taxi Prediction Model)
+    C -->|Feature Retrieval| F(Feast: Online Store Redis)
+    C -->|Model Management| T(MLflow: Model Registry)
+    C -->|Stream Processing| G(Kafka: Message Queue)
     
-    %% 特征存储层
-    F -->|特征服务| D
-    O(Feast: 离线存储 Parquet) -->|特征物化| F
+    %% Feature Store Layer
+    F -->|Feature Service| D
+    O(Feast: Offline Store Parquet) -->|Feature Materialization| F
     
-    %% 核心训练管道 (TFX Pipeline)
-    G -->|数据摄取| H(TFX Pipeline)
-    H --> H1[Apache Beam: 分布式执行引擎]
-    H1 --> I[ExampleGen: 数据摄取]
-    I --> J[StatisticsGen: 数据统计]
-    J --> K[SchemaGen: 模式生成]
-    K --> L[ExampleValidator: 数据验证]
-    L --> M[Transform: 特征转换]
-    M --> P[Trainer: 模型训练]
-    P --> R[Evaluator: 模型评估]
-    R --> S[Pusher: 模型部署]
+    %% Core Training Pipeline (TFX Pipeline)
+    G -->|Data Ingestion| H(TFX Pipeline)
+    H --> H1[Apache Beam: Distributed Execution Engine]
+    H1 --> I[ExampleGen: Data Ingestion]
+    I --> J[StatisticsGen: Data Statistics]
+    J --> K[SchemaGen: Schema Generation]
+    K --> L[ExampleValidator: Data Validation]
+    L --> M[Transform: Feature Transformation]
+    M --> P[Trainer: Model Training]
+    P --> R[Evaluator: Model Evaluation]
+    R --> S[Pusher: Model Deployment]
     
-    %% 独立的 Feast 集成管道 (最佳实践)
-    M -->|转换后数据| Z[Feast Integration Pipeline]
-    Z -->|特征工程| AA[Feature Processing]
-    AA -->|批量写入| O
-    AA -->|实时物化| F
-    Z -->|调度管理| BB[Feast Scheduler]
+    %% Independent Feast Integration Pipeline (Best Practice)
+    M -->|Transformed Data| Z[Feast Integration Pipeline]
+    Z -->|Feature Engineering| AA[Feature Processing]
+    AA -->|Batch Write| O
+    AA -->|Real-time Materialization| F
+    Z -->|Scheduling Management| BB[Feast Scheduler]
     
-    %% 模型管理和部署
-    P -->|模型注册| T
-    S -->|模型部署| D
-    T -->|模型版本| D
+    %% Model Management and Deployment
+    P -->|Model Registration| T
+    S -->|Model Deployment| D
+    T -->|Model Version| D
     
-    %% 数据版本和元数据管理
-    I -->|数据版本| U(DVC: 数据版本控制)
-    H -->|执行元数据| V(MLMD: 元数据存储)
-    T -->|模型元数据| V
+    %% Data Version and Metadata Management
+    I -->|Data Version| U(DVC: Data Version Control)
+    H -->|Execution Metadata| V(MLMD: Metadata Store)
+    T -->|Model Metadata| V
     
-    %% 实时数据流
-    G -->|实时特征| CC[Stream Processor]
-    CC -->|特征更新| F
-    G -->|模型指标| DD[Metrics Collector]
-    DD -->|性能监控| W
+    %% Real-time Data Stream
+    G -->|Real-time Features| CC[Stream Processor]
+    CC -->|Feature Update| F
+    G -->|Model Metrics| DD[Metrics Collector]
+    DD -->|Performance Monitoring| W
     
-    %% 数据质量监控
-    L -->|数据质量| EE[Data Drift Monitor]
-    EE -->|漂移检测| B
-    EE -->|告警| X
+    %% Data Quality Monitoring
+    L -->|Data Quality| EE[Data Drift Monitor]
+    EE -->|Drift Detection| B
+    EE -->|Alert| X
     
-    %% 监控和可观测性
-    C -->|API 指标| W(Prometheus: 指标收集)
-    C -->|应用日志| X(Loki: 日志聚合)
-    G -->|Kafka 日志| X
-    H -->|Pipeline 日志| X
-    Z -->|Feast 日志| X
-    W -->|指标可视化| Y(Grafana: 监控仪表板)
-    X -->|日志查询| Y
-    Y -->|告警| FF[Alert Manager]
+    %% Monitoring and Observability
+    C -->|API Metrics| W(Prometheus: Metrics Collection)
+    C -->|Application Logs| X(Loki: Log Aggregation)
+    G -->|Kafka Logs| X
+    H -->|Pipeline Logs| X
+    Z -->|Feast Logs| X
+    W -->|Metrics Visualization| Y(Grafana: Monitoring Dashboard)
+    X -->|Log Query| Y
+    Y -->|Alert| FF[Alert Manager]
     
-    %% 组件分组
-    subgraph "🎯 用户界面层"
+    %% Component Grouping
+    subgraph "🎯 User Interface Layer"
         A
         B
     end
     
-    subgraph "🚀 API 服务层"
+    subgraph "🚀 API Service Layer"
         C
     end
     
-    subgraph "🤖 模型推理层"
+    subgraph "🤖 Model Inference Layer"
         D
         T
     end
     
-    subgraph "🍽️ 特征存储层 (Feast)"
+    subgraph "🍽️ Feature Store Layer (Feast)"
         F
         O
         Z
@@ -87,7 +86,7 @@ graph TD
         BB
     end
     
-    subgraph "📊 核心训练管道 (TFX)"
+    subgraph "📊 Core Training Pipeline (TFX)"
         H
         I
         J
@@ -99,13 +98,13 @@ graph TD
         S
     end
     
-    subgraph "🌊 流处理层 (Kafka)"
+    subgraph "🌊 Stream Processing Layer (Kafka)"
         G
         CC
         DD
     end
     
-    subgraph "📈 监控和可观测性"
+    subgraph "📈 Monitoring and Observability"
         W
         X
         Y
@@ -113,12 +112,12 @@ graph TD
         EE
     end
     
-    subgraph "💾 数据和元数据管理"
+    subgraph "💾 Data and Metadata Management"
         U
         V
     end
     
-    %% 样式定义
+    %% Style Definitions
     classDef tfxComponent fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef feastComponent fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef kafkaComponent fill:#fff3e0,stroke:#e65100,stroke-width:2px
@@ -130,4 +129,3 @@ graph TD
     class G,CC,DD kafkaComponent
     class W,X,Y,FF,EE monitoringComponent
     class A,B,C uiComponent
-```

@@ -14,6 +14,20 @@ tmp/
 *.DS_Store
 *.log
 
+# MLflow local (now runs in K8s)
+mlflow/mlflow.db
+mlflow/*.sh
+mlflow/mlflow_config.yaml
+
+# Model files (generated at build time)
+api/model/*
+!api/model/.gitkeep
+
+# Local memory and docs
+memory.md
+doc.md
+docs/IMPLEMENTATION_STATUS.md
+
 # Large binaries
 minikube-darwin-amd64
 tfx_pipeline/pipelines/chicago_taxi_simple/Trainer

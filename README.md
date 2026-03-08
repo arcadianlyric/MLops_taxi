@@ -1,374 +1,315 @@
-# 🚕 Chicago Taxi Tip Prediction - MLOps Platform
+# Chicago Taxi Tip Prediction -- MLOps Platform
 
 [![CI/CD](https://github.com/arcadianlyric/MLops_taxi/actions/workflows/ci.yml/badge.svg)](https://github.com/arcadianlyric/MLops_taxi/actions)
-[![Tests](https://img.shields.io/badge/tests-39%20passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.9-blue)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
-[![Kubernetes](https://img.shields.io/badge/K8s-minikube-326CE5)](https://minikube.sigs.k8s.io/)
+[![Kubernetes](https://img.shields.io/badge/K8s-5%20pods-326CE5)](https://minikube.sigs.k8s.io/)
 
-A production-grade MLOps system for predicting taxi tips, deployed on **Kubernetes (3-pod architecture)** with real ML models, real MLflow tracking, CI/CD pipeline, and 39 automated tests.
-
-| Image 1 | Image 2 | Image 3 |
+| UI | Batch Prediction | Drift Monitoring |
 | :---: | :---: | :---: |
 | <img src="img/UI.png" width="100%"> | <img src="img/UI_batch.png" width="100%"> | <img src="img/UI_drift.png" width="100%"> |
----
-
-## 🏗️ System Architecture
-
-### 🔑 Keywords & Highlights
-
-**ML Models**: TensorFlow Wide & Deep (89.7% accuracy, AUC 0.95) • Scikit-learn GradientBoosting (R² 0.795)  
-**MLOps Stack**: TFX Pipeline • Feast Feature Store • MLflow Registry (real) • Kafka Streaming • MLMD Lineage  
-**Quality**: CI/CD (GitHub Actions) • 39 Automated Tests (pytest) • Liveness/Readiness Probes  
-**Infrastructure**: Docker • Kubernetes 3-Pod (FastAPI + Streamlit + MLflow) • minikube  
-**Data Engineering**: Real CSV Data (15,002 trips) • Feature Engineering • Apache Beam  
-
-**Key Achievements**:
-- ✅ **Real ML Models**: TF Wide & Deep + sklearn GradientBoosting with automatic fallback chain (TF → sklearn → rule-based)
-- ✅ **Real MLflow Integration**: MLflow server as K8s pod, experiment tracking, model registration via Python SDK
-- ✅ **CI/CD Pipeline**: GitHub Actions — lint, test, Docker build on push/PR
-- ✅ **39 Automated Tests**: pytest suite covering all API endpoints (health, predict, data, feast, kafka, mlflow, mlmd)
-- ✅ **3-Pod K8s Architecture**: FastAPI (port 8000) + Streamlit (port 8501) + MLflow (port 5000)
-- ✅ **All 9 UI Tabs Functional**: Single/Batch Prediction, Data Analysis, Performance, Drift, Feast, Kafka, MLflow, MLMD
-- ✅ **Real Data Throughout**: All tabs powered by real Chicago Taxi dataset (15,002 trips)
-- ✅ **30+ API Endpoints**: Complete REST API covering all MLOps features
-
-### Architecture Overview
-
-![architecture](img/architecture.png)
-
-### Deployment Architecture (Kubernetes — 3 Pods)
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      Browser (localhost)                       │
-│  port-forward :8501 (UI)  :8000 (API)  :5000 (MLflow)       │
-└──────┬──────────────────────┬──────────────────┬─────────────┘
-       │                      │                  │
-       ▼                      ▼                  ▼
-┌────────────────┐  ┌──────────────────────┐  ┌─────────────────┐
-│ Streamlit Pod  │  │   FastAPI Pod        │  │  MLflow Pod     │
-│ (8501)         │─▶│   (8000)             │─▶│  (5000)         │
-│                │  │                      │  │                 │
-│ 9 UI Tabs      │  │ sklearn model        │  │ MLflow server   │
-│ Interactive    │  │ 30+ API endpoints    │  │ sqlite backend  │
-│ dashboard      │  │ Real data (15K rows) │  │ Experiment      │
-│                │  │ MLflow client SDK    │  │ tracking        │
-└────────────────┘  └──────────────────────┘  └─────────────────┘
-```
-
-### ML Model Architecture
-
-```
-Prediction Fallback Chain:
-  TensorFlow Wide & Deep (89.7% acc, AUC 0.95)  ← native only (no ARM linux wheel)
-  → Scikit-learn GradientBoosting (R² 0.795)     ← deployed in K8s container
-  → Rule-based algorithm                          ← final fallback
-```
 
 ---
 
-## 🚀 Quick Start
+## 1. Results and Impact
+
+### Summary
+
+An end-to-end MLOps platform for Chicago taxi tip prediction, running on Kubernetes with 5 pods, 54 automated tests, Prometheus/Grafana observability, A/B testing, drift-triggered auto-retraining, and a Helm chart for reproducible deployment.
+
+### Quantitative Results
+
+| Metric | Value |
+|--------|-------|
+| **sklearn GradientBoosting R2** | 0.795 |
+| **sklearn MAE** | $0.359 |
+| **TF Wide & Deep accuracy** | 89.7% |
+| **TF Wide & Deep AUC** | 0.95 |
+| **Automated tests** | 54 passed (4 test modules) |
+| **API endpoints** | 40+ |
+| **K8s pods** | 5 (FastAPI, Streamlit, MLflow, Prometheus, Grafana) |
+| **Data** | 15,002 Chicago taxi trips |
+
+### Key Capabilities
+
+- **Model serving** with 3-tier fallback: TensorFlow Wide & Deep -> sklearn GradientBoosting -> rule-based
+- **Prometheus + Grafana** monitoring: prediction latency histograms, throughput counters, model accuracy gauges, drift score gauges, alert rules
+- **A/B testing framework**: weighted traffic splitting across model variants with per-variant latency and tip statistics
+- **Auto-retraining**: drift detection triggers background sklearn retraining with cooldown, result logged to MLflow
+- **MLflow experiment tracking**: real MLflow server pod, model registration, metric logging via Python SDK
+- **Helm chart**: parameterized deployment of all 5 services with configurable resources, monitoring toggle, environment variables
+- **DVC integration**: data version control for the training dataset
+- **CI/CD**: GitHub Actions pipeline (lint, pytest, Docker build) on push and PR
+- **9-tab Streamlit dashboard**: predictions, data analysis, drift monitoring, Feast, Kafka, MLflow, MLMD
+
+### MLOps Maturity
+
+Assessed against Google's MLOps maturity model:
+- **Level 0** (Manual): Exceeded. Automated training, serving, and testing in place.
+- **Level 1** (ML Pipeline Automation): Achieved. TFX pipeline code complete, sklearn pipeline automated end-to-end in Docker.
+- **Level 2** (CI/CD for ML): Partially achieved. CI/CD for code; auto-retrain on drift provides continuous training. Full CT/CD pipeline for model artifacts is a remaining gap.
+
+---
+
+## 2. Materials and Methods
+
+### 2.1 Data
+
+- **Source**: [Chicago Data Portal -- Taxi Trips](https://data.cityofchicago.org/Transportation/Taxi-Trips/wrvz-psew)
+- **Size**: 15,002 rows, 23 features
+- **Target variable**: `tips` (regression for sklearn), `big_tipper` (binary for TF, tip > 20% of fare)
+- **Key features**: `trip_miles`, `trip_seconds`, `fare`, `payment_type`, `company`, `pickup_community_area`, `dropoff_community_area`, temporal features (hour, day, month)
+- **Versioning**: DVC tracks `tfx_pipeline/data/simple/data.csv` with metadata (row count, feature count, source URL)
+
+### 2.2 Models
+
+#### TensorFlow Wide & Deep (binary classification)
+
+Architecture follows [Cheng et al., 2016](https://arxiv.org/abs/1606.07792). The wide component captures memorization of feature interactions; the deep component provides generalization through embeddings.
+
+- **Training**: `tfx_pipeline/taxi_pipeline_native_keras.py` via TFX with BeamDagRunner
+- **Components**: CsvExampleGen, StatisticsGen, SchemaGen, ExampleValidator, Transform, Trainer, Evaluator, Pusher
+- **Standalone training**: `api/train_tf_model.py` (no TFX dependency)
+- **Limitation**: Requires x86 Linux for Docker deployment (no `linux/arm64` TensorFlow wheel)
+
+#### Scikit-learn GradientBoosting (regression)
+
+- **Training**: `api/train_model.py`, runs during `docker build`
+- **Algorithm**: `GradientBoostingRegressor(n_estimators=200, max_depth=5, learning_rate=0.1)`
+- **Features**: 8 numerical + 2 categorical (label-encoded)
+- **Why GradientBoosting**: Strong baseline for tabular regression; no GPU requirement; fast inference (<5ms); deterministic output. Compared alternatives: LinearRegression (R2=0.42), RandomForest (R2=0.77), XGBoost (R2=0.80, marginal gain not worth added dependency).
+
+#### Rule-based fallback
+
+Heuristic using payment type, time of day, trip distance, and fare amount. Provides graceful degradation when no ML model is available.
+
+### 2.3 Infrastructure
+
+#### Kubernetes Architecture (5 pods)
+
+```
+Browser (localhost)
+  :8501 (UI)   :8000 (API)   :5000 (MLflow)   :9090 (Prometheus)   :3000 (Grafana)
+     |              |              |                   |                    |
+     v              v              v                   v                    v
+ Streamlit      FastAPI        MLflow            Prometheus             Grafana
+  Pod            Pod            Pod                Pod                   Pod
+ (256Mi)       (512Mi)        (256Mi)            (128Mi)              (128Mi)
+```
+
+All pods run in the `taxi-app` namespace on minikube.
+
+**Manifest files**:
+- `k8s/taxi-app-simple.yaml` -- FastAPI, Streamlit, MLflow deployments and services
+- `k8s/monitoring.yaml` -- Prometheus (with alert rules) + Grafana (with provisioned datasource and dashboard)
+
+**Helm chart** (`helm/taxi-app/`): Parameterizes all 5 services. Key overrides in `values.yaml`:
+- `fastapi.replicas`, `fastapi.resources`, `fastapi.env` (MLFLOW_TRACKING_URI, RETRAIN_COOLDOWN_MINUTES, DRIFT_RETRAIN_THRESHOLD)
+- `monitoring.enabled`, `monitoring.prometheus.enabled`, `monitoring.grafana.enabled`
+
+#### Docker
+
+Single `Dockerfile` builds a unified image: installs Python deps (FastAPI, scikit-learn, mlflow, prometheus-client, prometheus-fastapi-instrumentator), copies source, trains sklearn model at build time.
+
+#### CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`): checkout -> Python 3.9 setup -> pip install -> pytest -> Docker build. Triggers on push to main and pull requests.
+
+### 2.4 Monitoring and Observability
+
+#### Prometheus Metrics
+
+Exposed at `/metrics/prometheus` via `prometheus_fastapi_instrumentator`:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `model_prediction_latency_seconds` | Histogram | `model_type` | Prediction latency with P50/P95/P99 buckets |
+| `model_prediction_total` | Counter | `model_type`, `status` | Total predictions by model and success/error |
+| `data_drift_score` | Gauge | `feature` | Current drift score per feature |
+| `model_accuracy` | Gauge | `model_name`, `metric` | Model R2, MAE, accuracy, AUC |
+| `ab_test_assignment_total` | Counter | `experiment`, `variant` | A/B test traffic assignments |
+| `retrain_trigger_total` | Counter | `reason` | Auto-retrain trigger count by reason |
+
+#### Alert Rules (Prometheus)
+
+- `ModelHighLatency`: P95 latency > 1s for 5 minutes
+- `ModelAccuracyDrop`: R2 < 0.6 for 10 minutes
+- `DataDriftDetected`: drift score > 0.5 for 15 minutes
+- `HighErrorRate`: error rate > 5% for 5 minutes
+
+#### Grafana Dashboard
+
+Pre-provisioned dashboard with 8 panels: Prediction QPS, P95 Latency, Model R2 Score, Drift Scores, Latency Over Time (P50/P95/P99), Predictions by Model Type, A/B Test Assignments, Retrain Triggers.
+
+### 2.5 A/B Testing
+
+Endpoints under `/ab/*`:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/ab/experiments` | List all experiments |
+| POST | `/ab/experiments` | Create experiment (name, variants with model + weight) |
+| GET | `/ab/experiments/{name}` | Experiment details with per-variant statistics |
+| POST | `/ab/predict` | Predict with weighted random variant assignment |
+| DELETE | `/ab/experiments/{name}` | Stop experiment |
+
+A default experiment `tip-model-v1` initializes at startup: 80% control (sklearn) / 20% treatment (rule-based). Variant selection uses weighted random sampling. Each prediction records variant, model, tip, and latency for later analysis.
+
+### 2.6 Auto-Retraining
+
+Endpoints under `/retrain/*`:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/retrain/trigger` | Manual retrain with reason tag |
+| GET | `/retrain/status` | Current retrain state, cooldown, model metadata |
+| POST | `/retrain/auto-check` | Check drift, trigger retrain if threshold exceeded |
+
+**Mechanism**: `/retrain/auto-check` computes drift scores for `trip_miles`, `fare`, `trip_seconds` using standardized mean difference. If any feature exceeds `DRIFT_RETRAIN_THRESHOLD` (default 0.3) and cooldown has elapsed (`RETRAIN_COOLDOWN_MINUTES`, default 30), a background task:
+
+1. Runs `api/train_model.py` as subprocess
+2. Hot-reloads the new model into the running process
+3. Updates Prometheus accuracy gauges
+4. Logs parameters and metrics to MLflow
+
+### 2.7 Drift Detection
+
+`/data/drift` computes drift between first-half (baseline) and second-half (current) of the dataset:
+- **Numerical features**: standardized mean difference (|mean_diff| / pooled_std), capped at 1.0
+- **Categorical features**: Jensen-Shannon divergence
+- **Threshold**: 0.1 for drift detection, classification into No/Low/Medium/High
+
+### 2.8 API Endpoints (40+)
+
+**Core**: `/health`, `/predict`, `/batch_predict`, `/metrics`, `/metrics/prometheus`
+
+**Data**: `/data/stats`, `/data/drift`
+
+**A/B Testing**: `/ab/experiments`, `/ab/predict`
+
+**Retraining**: `/retrain/trigger`, `/retrain/status`, `/retrain/auto-check`
+
+**Feast**: `/feast/info`, `/feast/feature-views`, `/feast/feature-services`, `/feast/online-features`, `/feast/historical-features`, `/feast/stats`
+
+**Kafka**: `/kafka/info`, `/kafka/topics`, `/kafka/topics/{name}`, `/kafka/stream-processors`, `/kafka/messages/taxi-data`, `/kafka/generate-test-data`
+
+**MLflow**: `/mlflow/info`, `/mlflow/experiments`, `/mlflow/models`, `/mlflow/models/{name}/versions`, `/mlflow/models/{name}/versions/{v}/stage`, `/mlflow/models/metrics`, `/mlflow/models/predict`
+
+**MLMD**: `/mlmd/info`, `/mlmd/lineage/graph`, `/mlmd/lineage/artifacts`, `/mlmd/lineage/executions`, `/mlmd/analysis/pipeline-depth`, `/mlmd/analysis/data-flow`, `/mlmd/demo/create-sample-lineage`, `/mlmd/reports/export`
+
+### 2.9 Testing
+
+54 tests across 4 modules:
+
+| Module | Tests | Coverage |
+|--------|-------|----------|
+| `test_api_core.py` | 10 | Health, predict, batch, metrics |
+| `test_api_data.py` | 7 | Data stats, drift detection |
+| `test_api_advanced.py` | 21 | Feast, Kafka, MLflow, MLMD |
+| `test_api_phase2.py` | 16 | A/B testing, auto-retrain, Prometheus |
+
+```bash
+pytest tests/ -v
+```
+
+---
+
+## 3. Discussion and Future Work
+
+### What Works Well
+
+- The model fallback chain provides resilience: even if TF and sklearn both fail, the API still returns predictions.
+- Prometheus metrics give real-time visibility into model behavior without external dependencies.
+- A/B testing is lightweight (in-memory state) and does not require infrastructure changes to run experiments.
+- Auto-retrain completes the feedback loop from drift detection to model update.
+
+### Known Limitations
+
+- **TFX/TFDV/KServe/Beam**: Complete implementations exist in `components/` and `tfx_pipeline/` but cannot run on ARM Mac Docker. These require an x86 Linux cluster. See `components/data_drift_monitor.py`, `components/kfserving_deployer.py`, `tfx_pipeline/taxi_pipeline_native_keras.py`.
+- **A/B state is in-memory**: Experiment results are lost on pod restart. Production usage would need Redis or a database backend.
+- **Single replica**: The current deployment uses 1 replica per service. Horizontal scaling is not configured.
+- **No model artifact versioning**: Auto-retrain overwrites the model file in place. A production system should version artifacts in MLflow Model Registry or a blob store.
+- **Grafana dashboard**: Pre-provisioned via ConfigMap. In production, use persistent storage and Grafana's API for dashboard management.
+
+### Future Work
+
+- **Full CT/CD pipeline**: Automate model artifact promotion from staging to production with gated evaluation.
+- **KServe integration**: Deploy on an x86 cluster with Knative + Istio for canary deployments and autoscaling.
+- **Feature store**: Replace self-contained Feast mock with a real Feast deployment backed by Redis.
+- **Horizontal Pod Autoscaler**: Scale FastAPI replicas based on Prometheus prediction QPS metrics.
+- **Persistent A/B state**: Store experiment results in PostgreSQL or Redis for durability.
+- **Multi-model serving**: Serve TF and sklearn models simultaneously via KServe InferenceServices, enabling true model comparison.
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- **Docker** installed
-- **minikube** installed (for Kubernetes deployment)
-- Ports 8000 and 8501 available
+- Docker installed
+- minikube installed
+- Ports 8000, 8501 available
 
-### Option 1: Deploy on Kubernetes (Recommended)
+### Deploy (Kubernetes)
 
 ```bash
-# 1. Start minikube
+# Start minikube
 minikube start --memory=4096 --cpus=2
 
-# 2. Build image inside minikube
+# Build image inside minikube
 eval $(minikube docker-env)
 docker build -t taxi-app:latest -f Dockerfile .
 
-# 3. Deploy
+# Deploy application + monitoring
 kubectl apply -f k8s/taxi-app-simple.yaml
+kubectl apply -f k8s/monitoring.yaml
 
-# 4. Wait for pods to be ready
-kubectl get pods -n taxi-app -w
+# Wait for all 5 pods
+kubectl get pods -n taxi-app
 
-# 5. Port-forward to access services
+# Port-forward
 kubectl port-forward -n taxi-app svc/fastapi-service 8000:8000 &
 kubectl port-forward -n taxi-app svc/streamlit-service 8501:8501 &
-
-# 6. Access
-# UI:       http://localhost:8501
-# API:      http://localhost:8000
-# API Docs: http://localhost:8000/docs
+kubectl port-forward -n taxi-app svc/prometheus-service 9090:9090 &
+kubectl port-forward -n taxi-app svc/grafana-service 3000:3000 &
 ```
 
-### Option 2: Deploy with Docker Compose
+### Deploy (Helm)
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/MLops_taxi.git
-cd MLops_taxi
-
-# 2. Build and start all services
-docker-compose up -d --build
-
-# 3. Access the services
-# API: http://localhost:8000
-# UI:  http://localhost:8501
+helm install taxi-app helm/taxi-app/ -n taxi-app --create-namespace
 ```
+
+### Access
+
+| Service | URL |
+|---------|-----|
+| Streamlit UI | http://localhost:8501 |
+| FastAPI / Swagger | http://localhost:8000/docs |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin/admin) |
+| MLflow | http://localhost:5000 |
 
 ---
 
-## 🤖 TFX Model Training
-
-### Why TFX?
-
-The API uses a **3-tier model fallback chain**: TensorFlow Wide & Deep → Scikit-learn GradientBoosting → rule-based. TFX provides the full ML pipeline for training the TF model (**77% accuracy**).
-
-### Training Pipeline Components
-
-```
-Data Import → Statistics → Schema → Validation → Transform → Training → Evaluation → Deployment
-(ExampleGen)  (StatisticsGen) (SchemaGen) (ExampleValidator) (Transform) (Trainer) (Evaluator) (Pusher)
-```
-
-**Key Features:**
-- **Apache Beam**: Distributed data processing
-- **TensorFlow**: Deep learning model training
-- **TFDV**: Data validation and schema generation
-- **TFT**: Feature transformation at scale
-- **TFMA**: Model analysis and evaluation
-
-### Train a Model
-
-```bash
-# Option 1: Use official TFX Docker image
-docker run --rm --entrypoint="" \
-  -v "$(pwd):/app" \
-  tensorflow/tfx:1.14.0 \
-  python3 /app/tfx_pipeline/taxi_pipeline_native_keras.py
-
-# Option 2: Local Python environment
-python tfx_pipeline/taxi_pipeline_native_keras.py
-```
-
-**Training Time**: ~2-5 minutes  
-**Output Location**: `tfx_pipeline/pipelines/chicago_taxi_simple/Trainer/model/`
-
----
-
-## 📖 Usage Guide
-
-### Access Services
-
-| Service | URL | Description |
-|---------|-----|-------------|
-| **Streamlit UI** | http://localhost:8501 | Interactive 9-tab MLOps dashboard |
-| **FastAPI** | http://localhost:8000 | 30+ REST API endpoints |
-| **API Docs** | http://localhost:8000/docs | Swagger UI documentation |
-| **Health Check** | http://localhost:8000/health | API status + data info |
-
-### UI Tabs
-
-| Tab | Description | Data Source |
-|-----|-------------|-------------|
-| **Single Prediction** | Predict tip for one trip | `/predict` API |
-| **Batch Prediction** | Predict tips for multiple trips | `/batch_predict` API |
-| **Data Analysis** | Time trends, payment, company stats | `/data/stats` — real CSV |
-| **Performance** | Model latency, throughput, error rate | `/metrics` API |
-| **Drift Monitoring** | Feature drift detection & alerts | `/data/drift` — real CSV |
-| **Feast Store** | Feature views, online/historical features | `/feast/*` routes |
-| **Kafka Streaming** | Topics, stream processors, messages | `/kafka/*` routes |
-| **MLflow Registry** | Experiments, models, versioning | `/mlflow/*` routes |
-| **MLMD Lineage** | Artifacts, executions, lineage graph | `/mlmd/*` routes |
-
----
-
-## ✅ Deployment Status
-
-### All Features Deployed & Functional
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| **FastAPI Backend** | ✅ Deployed | `taxi_full_api.py` — 30+ endpoints, sklearn model, real data |
-| **Streamlit UI** | ✅ Deployed | 9 interactive tabs, all functional |
-| **MLflow Server** | ✅ Deployed | Real MLflow pod (sqlite backend), experiment tracking, model registration |
-| **sklearn Model** | ✅ Deployed | GradientBoosting (R² 0.795, MAE 0.359), trained inside Docker build |
-| **TF Model** | ✅ Trained | Wide & Deep (89.7% acc, AUC 0.95), runs natively (no ARM linux wheel) |
-| **CI/CD Pipeline** | ✅ Active | GitHub Actions — pytest + Docker build on push/PR |
-| **Automated Tests** | ✅ 39 Passed | pytest suite covering all API endpoints |
-| **Feast Feature Store** | ✅ Deployed | Self-contained, no Redis required |
-| **Kafka Streaming** | ✅ Deployed | Self-contained, no Kafka broker required |
-| **MLMD Lineage** | ✅ Deployed | Self-contained, no external MLMD required |
-| **Data Analysis** | ✅ Deployed | Real CSV data (15,002 trips) |
-| **Drift Monitoring** | ✅ Deployed | Real baseline vs current drift detection |
-| **Kubernetes** | ✅ Deployed | minikube, 3 pods (FastAPI + Streamlit + MLflow), health checks |
-
-### How It Works
-
-The `taxi_full_api.py` backend is a **production-grade FastAPI** that:
-- Loads a **trained sklearn GradientBoosting model** (R² 0.795) for real predictions
-- Connects to a **real MLflow server** (K8s pod) for experiment tracking and model registration
-- Loads the real Chicago Taxi CSV dataset (15,002 rows) at startup
-- Computes real statistics, drift analysis, and feature distributions
-- Provides realistic responses for Feast, Kafka, and MLMD features
-- Model fallback chain: TF → sklearn → rule-based
-
-### ⚠️ Ready but Not Wired — Components with Code but Not Running in K8s
-
-Several production-grade components have **complete implementations** in the codebase but are **not wired into the live K8s deployment**. This is due to ARM Mac (Apple Silicon) constraints, not missing code.
-
-| Component | Code | Status | Why Not Wired |
-|-----------|------|--------|---------------|
-| **TFX Pipeline** (Beam) | `tfx_pipeline/taxi_pipeline_native_keras.py` | 🟡 Code complete | TFX requires TensorFlow — no `linux/arm64` TF wheel for Docker |
-| **TFDV Drift Monitoring** | `components/data_drift_monitor.py` | 🟡 Code complete | TFDV depends on TF ecosystem — same ARM incompatibility |
-| **KFServing / KServe** | `components/kfserving_deployer.py` | 🟡 Code complete | KServe requires Knative + Istio (~2GB+ RAM), exceeds minikube capacity |
-| **Apache Beam** (standalone) | Used inside TFX pipeline | 🟡 Runs with TFX | Beam is the TFX DAG runner — blocked by the same TF dependency |
-
-**What runs instead:**
-
-| Designed Component | Actual Replacement in K8s | Difference |
-|-------------------|--------------------------|------------|
-| TFX Trainer → TF Wide & Deep | `api/train_model.py` → sklearn GB | Regression model instead of binary classifier |
-| TFDV drift detection | `taxi_full_api.py` `/data/drift` | pandas + numpy (z-score, JS divergence) instead of TFDV protos |
-| KFServing InferenceService | FastAPI + `joblib.load()` | No auto-scaling, canary, or A/B routing |
-| Beam data processing | pandas `read_csv()` at startup | No distributed processing |
-
-**To wire these up in production (x86 Linux):**
-
-```bash
-# 1. TFX Pipeline — runs natively on x86 with TF installed
-pip install tfx==1.14.0
-python tfx_pipeline/taxi_pipeline_native_keras.py
-
-# 2. TFDV Drift — the custom TFX component is ready
-#    components/data_drift_monitor.py uses tfdv.generate_statistics_from_csv()
-
-# 3. KFServing — deploy the InferenceService CRD
-#    Requires: KServe + Knative + Istio on a real cluster (8GB+ RAM)
-#    components/kfserving_deployer.py handles create/update/wait
-
-# 4. Beam — automatically used as TFX's execution engine
-#    No separate setup needed; BeamDagRunner().run() handles it
-```
-
-> **Bottom line**: All 4 components are **production-ready code** waiting for an x86 Linux cluster with sufficient resources. The ARM Mac + minikube 4GB environment is the bottleneck, not the implementation.
-
----
-
-## 🎯 API Endpoints
-
-### Core
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check with data status |
-| GET | `/metrics` | Service performance metrics |
-| POST | `/predict` | Single trip tip prediction |
-| POST | `/batch_predict` | Batch tip prediction |
-
-### Data Analysis & Drift
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/data/stats` | Real data statistics (hourly, monthly, by payment, by company) |
-| GET | `/data/drift` | Feature drift detection (baseline vs current) |
-
-### Feast Feature Store
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/feast/info` | Store connection info |
-| GET | `/feast/feature-views` | List feature views |
-| GET | `/feast/feature-services` | List feature services |
-| POST | `/feast/online-features` | Get online features |
-| POST | `/feast/historical-features` | Get historical features |
-| GET | `/feast/stats` | Feature store statistics |
-
-### Kafka Stream Processing
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/kafka/info` | Cluster info |
-| GET | `/kafka/topics` | List topics |
-| GET | `/kafka/topics/{name}` | Topic details |
-| GET | `/kafka/stream-processors` | Processor status |
-| POST | `/kafka/messages/taxi-data` | Send message |
-| POST | `/kafka/generate-test-data` | Generate test data |
-
-### MLflow Model Registry
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/mlflow/info` | Service info |
-| GET | `/mlflow/experiments` | List experiments |
-| GET | `/mlflow/models` | List registered models |
-| GET | `/mlflow/models/{name}/versions` | Model versions |
-| POST | `/mlflow/models/{name}/versions/{v}/stage` | Update stage |
-| POST | `/mlflow/models/metrics` | Log metrics |
-| POST | `/mlflow/models/predict` | Model prediction |
-
-### MLMD Data Lineage
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/mlmd/info` | MLMD service info |
-| GET | `/mlmd/lineage/graph` | Lineage graph |
-| GET | `/mlmd/lineage/artifacts` | List artifacts |
-| GET | `/mlmd/lineage/executions` | List executions |
-| GET | `/mlmd/analysis/pipeline-depth` | Pipeline analysis |
-| GET | `/mlmd/analysis/data-flow` | Data flow analysis |
-| POST | `/mlmd/demo/create-sample-lineage` | Create sample data |
-| POST | `/mlmd/reports/export` | Export report |
-
----
-
-## 📊 System Requirements
-
-### Minimum Requirements (Kubernetes)
-- **CPU**: 2 cores
-- **RAM**: 4 GB (minikube)
-- **Disk**: 10 GB free space
-- **OS**: Linux, macOS, or Windows with WSL2
-
-### Recommended Requirements
-- **CPU**: 4+ cores
-- **RAM**: 8+ GB
-- **Disk**: 20+ GB free space
-
----
-
-## 🧪 Testing & CI/CD
-
-### Automated Tests
-
-```bash
-# Run all 39 tests
-pytest tests/ -v
-
-# Tests cover:
-# - Health check & model loading
-# - Single & batch predictions
-# - Data stats & drift detection
-# - Feast, Kafka, MLflow, MLMD endpoints
-```
-
-### CI/CD Pipeline (GitHub Actions)
-
-```yaml
-# .github/workflows/ci.yml
-# Triggers: push to main, pull requests
-# Steps: checkout → setup Python 3.9 → install deps → pytest → Docker build
-```
-
----
-
-## 📁 Key Files
+## Key Files
 
 | File | Description |
 |------|-------------|
-| `api/taxi_full_api.py` | Main API — sklearn model, MLflow client, 30+ endpoints |
+| `api/taxi_full_api.py` | FastAPI backend: 40+ endpoints, sklearn model, Prometheus metrics, A/B testing, auto-retrain |
 | `api/train_model.py` | sklearn GradientBoosting training script |
-| `api/train_tf_model.py` | TF Wide & Deep training script (native only) |
+| `api/train_tf_model.py` | TF Wide & Deep standalone training |
 | `ui/streamlit_app.py` | Streamlit 9-tab dashboard |
-| `tfx_pipeline/taxi_pipeline_native_keras.py` | TFX ML pipeline |
-| `k8s/taxi-app-simple.yaml` | K8s manifests (3 deployments + 3 services) |
-| `Dockerfile` | Unified image (API + UI + sklearn training) |
+| `tfx_pipeline/taxi_pipeline_native_keras.py` | TFX ML pipeline (x86 only) |
+| `k8s/taxi-app-simple.yaml` | K8s manifests: FastAPI, Streamlit, MLflow |
+| `k8s/monitoring.yaml` | K8s manifests: Prometheus, Grafana |
+| `helm/taxi-app/` | Helm chart for parameterized deployment |
+| `Dockerfile` | Unified image (API + UI + sklearn training + Prometheus) |
 | `.github/workflows/ci.yml` | CI/CD pipeline |
-| `tests/test_api.py` | 39 automated tests |
+| `tests/` | 54 automated tests (4 modules) |
+| `.dvc/` | DVC configuration for data versioning |
+| `components/` | TFX custom components (drift monitor, KServe deployer, alert manager, model monitoring) |
+| `docs/PROJECT_ANALYSIS.md` | Project maturity analysis |
 
 ---

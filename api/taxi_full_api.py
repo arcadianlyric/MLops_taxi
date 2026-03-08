@@ -456,7 +456,7 @@ def predict_tip(trip: TaxiTripRequest, force_model: str = None) -> float:
                 logger.error(f"sklearn prediction failed: {e}")
         model_used = "rule_based"
         return _predict_rule_based(trip)
-    except Exception as e:
+    except Exception:
         status = "error"
         raise
     finally:

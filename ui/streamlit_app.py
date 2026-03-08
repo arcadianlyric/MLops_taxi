@@ -17,6 +17,10 @@ import sys
 import os
 import numpy as np
 import random
+try:
+    from drift_monitor_utils import DriftMonitorUI
+except ImportError:
+    DriftMonitorUI = None
 
 # Add project path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))

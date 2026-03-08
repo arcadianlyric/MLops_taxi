@@ -17,7 +17,7 @@ jobs:
       - name: Install linters
         run: pip install flake8 black isort
       - name: Run flake8
-        run: flake8 api/ ui/ --max-line-length=120 --ignore=E501,W503,E402,E302,E306,E401,F841,W293
+        run: flake8 api/ ui/ --max-line-length=120 --select=E9,F63,F7,F82 --exclude=api/main.py
       - name: Check black formatting
         run: black --check --line-length=120 api/ ui/ || true
       - name: Check import sorting

@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
+          pip install pytest pytest-asyncio "httpx<0.28"
       - name: Run tests
         run: pytest tests/ -v --tb=short
 

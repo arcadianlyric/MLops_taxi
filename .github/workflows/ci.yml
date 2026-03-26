@@ -45,19 +45,43 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -t taxi-app:${{ github.sha }} -f Dockerfile .
+      - name: Test container (import check)
+        run: |
+          docker run --rm \
+            -e MLFLOW_TRACKING_URI=http://localhost:1 \
+            taxi-app:${{ github.sha }} \
+            python3 -c "
+import sys; sys.path.insert(0, '/app')
+import api.taxi_full_api as m
+print('Import OK, app =', m.app.title)
+"
       - name: Test container health
         run: |
           docker run -d --name test-api -p 8000:8000 \
             -e MLFLOW_TRACKING_URI=http://localhost:1 \
+            -e MLFLOW_HTTP_REQUEST_MAX_RETRIES=0 \
             taxi-app:${{ github.sha }} \
             uvicorn api.taxi_full_api:app --host 0.0.0.0 --port 8000
+          HEALTHY=false
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/health && break
+            if ! docker ps -q --filter name=test-api | grep -q .; then
+              echo "Container exited unexpectedly!"
+              docker logs test-api
+              exit 1
+            fi
+            if curl -sf http://localhost:8000/health; then
+              HEALTHY=true
+              break
+            fi
             echo "Waiting for API... ($i/30)"
             sleep 2
           done
-          curl -f http://localhost:8000/health
-          docker stop test-api
+          docker logs test-api
+          docker stop test-api || true
+          if [ "$HEALTHY" != "true" ]; then
+            echo "API never became healthy after 60s"
+            exit 1
+          fi
 
   deploy:
     runs-on: ubuntu-latest

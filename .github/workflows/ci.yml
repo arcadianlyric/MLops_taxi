@@ -50,11 +50,7 @@ jobs:
           docker run --rm \
             -e MLFLOW_TRACKING_URI=http://localhost:1 \
             taxi-app:${{ github.sha }} \
-            python3 -c "
-import sys; sys.path.insert(0, '/app')
-import api.taxi_full_api as m
-print('Import OK, app =', m.app.title)
-"
+            python3 -c 'import sys; sys.path.insert(0,"/app"); import api.taxi_full_api as m; print("Import OK:", m.app.title)'
       - name: Test container health
         run: |
           docker run -d --name test-api -p 8000:8000 \

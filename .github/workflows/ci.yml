@@ -47,9 +47,15 @@ jobs:
         run: docker build -t taxi-app:${{ github.sha }} -f Dockerfile .
       - name: Test container health
         run: |
-          docker run -d --name test-api -p 8000:8000 taxi-app:${{ github.sha }} \
+          docker run -d --name test-api -p 8000:8000 \
+            -e MLFLOW_TRACKING_URI=http://localhost:1 \
+            taxi-app:${{ github.sha }} \
             uvicorn api.taxi_full_api:app --host 0.0.0.0 --port 8000
-          sleep 10
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health && break
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
           curl -f http://localhost:8000/health
           docker stop test-api
 

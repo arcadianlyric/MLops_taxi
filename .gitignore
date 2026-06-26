@@ -8,7 +8,7 @@ venv/
 mlops-env/
 env/
 ENV/
-
+.env
 # Temporary files
 tmp/
 *.DS_Store
@@ -24,7 +24,7 @@ api/model/*
 !api/model/.gitkeep
 
 # Local memory and docs
-memory.md
+memory/
 doc.md
 docs/IMPLEMENTATION_STATUS.md
 
@@ -37,3 +37,4 @@ tfx_pipeline/pipelines/chicago_taxi_simple/SchemaGen
 tfx_pipeline/pipelines/chicago_taxi_simple/ExampleGen
 tfx_pipeline/pipelines/chicago_taxi_simple/ExampleValidator
 tfx_pipeline/pipelines/chicago_taxi_simple/CsvExampleGen
+.windsurf/skills/system-design/SKILL.md

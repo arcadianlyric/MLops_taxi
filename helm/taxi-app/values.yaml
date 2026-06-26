@@ -8,9 +8,15 @@ image:
   pullPolicy: Never  # minikube uses local images
 
 fastapi:
-  replicas: 1
+  replicas: 2
   port: 8000
   nodePort: 30800
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
   resources:
     requests:
       memory: "512Mi"
@@ -22,6 +28,9 @@ fastapi:
     MLFLOW_TRACKING_URI: "http://mlflow-service:5000"
     RETRAIN_COOLDOWN_MINUTES: "30"
     DRIFT_RETRAIN_THRESHOLD: "0.3"
+    BATCH_MAX_SIZE: "512"
+    BATCH_MAX_WORKERS: "4"
+    PREDICTION_HISTORY_MAX: "1000"
 
 streamlit:
   replicas: 1

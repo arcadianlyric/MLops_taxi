@@ -16,7 +16,7 @@
 
 ### Summary
 
-An end-to-end MLOps platform for Chicago taxi tip prediction, running on Kubernetes with 5 pods, 54 automated tests, Prometheus/Grafana observability, A/B testing, drift-triggered auto-retraining, and a Helm chart for reproducible deployment.
+An end-to-end MLOps platform for Chicago taxi tip prediction, running on Kubernetes with 6 pods across 5 service types, 62 automated tests, Prometheus/Grafana observability, A/B testing, drift-triggered auto-retraining, bounded parallel batch inference, HPA-ready FastAPI serving, and a Helm chart for reproducible deployment.
 
 ### Quantitative Results
 
@@ -26,9 +26,9 @@ An end-to-end MLOps platform for Chicago taxi tip prediction, running on Kuberne
 | **sklearn MAE** | $0.359 |
 | **TF Wide & Deep accuracy** | 89.7% |
 | **TF Wide & Deep AUC** | 0.95 |
-| **Automated tests** | 54 passed (4 test modules) |
+| **Automated tests** | 62 passed (5 test modules) |
 | **API endpoints** | 40+ |
-| **K8s pods** | 5 (FastAPI, Streamlit, MLflow, Prometheus, Grafana) |
+| **K8s pods** | 6 by default (2 FastAPI + Streamlit, MLflow, Prometheus, Grafana) |
 | **Data** | 15,002 Chicago taxi trips |
 
 ### Key Capabilities
@@ -37,8 +37,10 @@ An end-to-end MLOps platform for Chicago taxi tip prediction, running on Kuberne
 - **Prometheus + Grafana** monitoring: prediction latency histograms, throughput counters, model accuracy gauges, drift score gauges, alert rules
 - **A/B testing framework**: weighted traffic splitting across model variants with per-variant latency and tip statistics
 - **Auto-retraining**: drift detection triggers background sklearn retraining with cooldown, result logged to MLflow
+- **Agentic drift-to-retrain loop**: Monitor -> policy guardrails -> evaluator -> optional retrain, with trace output and no automatic model promotion
 - **MLflow experiment tracking**: real MLflow server pod, model registration, metric logging via Python SDK
-- **Helm chart**: parameterized deployment of all 5 services with configurable resources, monitoring toggle, environment variables
+- **Scalable serving**: bounded parallel `/batch_predict`, configurable batch limits, capped in-process history, 2 FastAPI replicas, and HPA config for 2-6 replicas
+- **Helm chart**: parameterized deployment of all 5 services with configurable resources, monitoring toggle, environment variables, and FastAPI autoscaling
 - **DVC integration**: data version control for the training dataset
 - **CI/CD**: GitHub Actions pipeline (lint, pytest, Docker build) on push and PR
 - **9-tab Streamlit dashboard**: predictions, data analysis, drift monitoring, Feast, Kafka, MLflow, MLMD
@@ -90,22 +92,22 @@ Heuristic using payment type, time of day, trip distance, and fare amount. Provi
 
 ```
 Browser (localhost)
-  :8501 (UI)   :8000 (API)   :5000 (MLflow)   :9090 (Prometheus)   :3000 (Grafana)
+      :8501 (UI)   :8000 (API)   :5000 (MLflow)   :9090 (Prometheus)   :3000 (Grafana)
      |              |              |                   |                    |
      v              v              v                   v                    v
- Streamlit      FastAPI        MLflow            Prometheus             Grafana
-  Pod            Pod            Pod                Pod                   Pod
+ Streamlit     FastAPI x2      MLflow            Prometheus             Grafana
+  Pod            Pods           Pod                Pod                   Pod
  (256Mi)       (512Mi)        (256Mi)            (128Mi)              (128Mi)
 ```
 
-All pods run in the `taxi-app` namespace on minikube.
+All pods run in the `taxi-app` namespace on minikube. FastAPI starts with 2 replicas and can scale to 6 replicas with the included HPA.
 
 **Manifest files**:
 - `k8s/taxi-app-simple.yaml` -- FastAPI, Streamlit, MLflow deployments and services
 - `k8s/monitoring.yaml` -- Prometheus (with alert rules) + Grafana (with provisioned datasource and dashboard)
 
 **Helm chart** (`helm/taxi-app/`): Parameterizes all 5 services. Key overrides in `values.yaml`:
-- `fastapi.replicas`, `fastapi.resources`, `fastapi.env` (MLFLOW_TRACKING_URI, RETRAIN_COOLDOWN_MINUTES, DRIFT_RETRAIN_THRESHOLD)
+- `fastapi.replicas`, `fastapi.autoscaling`, `fastapi.resources`, `fastapi.env` (MLFLOW_TRACKING_URI, RETRAIN_COOLDOWN_MINUTES, DRIFT_RETRAIN_THRESHOLD, BATCH_MAX_SIZE, BATCH_MAX_WORKERS)
 - `monitoring.enabled`, `monitoring.prometheus.enabled`, `monitoring.grafana.enabled`
 
 #### Docker
@@ -182,13 +184,15 @@ Endpoints under `/retrain/*`:
 
 ### 2.8 API Endpoints (40+)
 
-**Core**: `/health`, `/predict`, `/batch_predict`, `/metrics`, `/metrics/prometheus`
+**Core**: `/health`, `/predict`, `/batch_predict` (bounded parallel inference), `/metrics`, `/metrics/prometheus`
 
 **Data**: `/data/stats`, `/data/drift`
 
 **A/B Testing**: `/ab/experiments`, `/ab/predict`
 
 **Retraining**: `/retrain/trigger`, `/retrain/status`, `/retrain/auto-check`
+
+**Agentic Control Plane**: `/agentic/drift-retrain/run` (safe dry-run by default; `execute=true` can trigger retrain, but production promotion remains blocked)
 
 **Feast**: `/feast/info`, `/feast/feature-views`, `/feast/feature-services`, `/feast/online-features`, `/feast/historical-features`, `/feast/stats`
 
@@ -228,7 +232,7 @@ pytest tests/ -v
 
 - **TFX/TFDV/KServe/Beam**: Complete implementations exist in `components/` and `tfx_pipeline/` but cannot run on ARM Mac Docker. These require an x86 Linux cluster. See `components/data_drift_monitor.py`, `components/kfserving_deployer.py`, `tfx_pipeline/taxi_pipeline_native_keras.py`.
 - **A/B state is in-memory**: Experiment results are lost on pod restart. Production usage would need Redis or a database backend.
-- **Single replica**: The current deployment uses 1 replica per service. Horizontal scaling is not configured.
+- **A/B state is not shared across replicas**: FastAPI can scale horizontally, but A/B experiment state remains in-memory per pod. Production usage would need Redis or a database backend.
 - **No model artifact versioning**: Auto-retrain overwrites the model file in place. A production system should version artifacts in MLflow Model Registry or a blob store.
 - **Grafana dashboard**: Pre-provisioned via ConfigMap. In production, use persistent storage and Grafana's API for dashboard management.
 
@@ -237,7 +241,7 @@ pytest tests/ -v
 - **Full CT/CD pipeline**: Automate model artifact promotion from staging to production with gated evaluation.
 - **KServe integration**: Deploy on an x86 cluster with Knative + Istio for canary deployments and autoscaling.
 - **Feature store**: Replace self-contained Feast mock with a real Feast deployment backed by Redis.
-- **Horizontal Pod Autoscaler**: Scale FastAPI replicas based on Prometheus prediction QPS metrics.
+- **Latency/QPS-based autoscaling**: Extend the current CPU/memory HPA with Prometheus Adapter custom metrics for prediction QPS and P95 latency.
 - **Persistent A/B state**: Store experiment results in PostgreSQL or Redis for durability.
 - **Multi-model serving**: Serve TF and sklearn models simultaneously via KServe InferenceServices, enabling true model comparison.
 
@@ -298,6 +302,7 @@ helm install taxi-app helm/taxi-app/ -n taxi-app --create-namespace
 | File | Description |
 |------|-------------|
 | `api/taxi_full_api.py` | FastAPI backend: 40+ endpoints, sklearn model, Prometheus metrics, A/B testing, auto-retrain |
+| `agentic/` | Agentic drift-to-retrain loop: monitor, policy guardrails, evaluator, retrainer, orchestrator |
 | `api/train_model.py` | sklearn GradientBoosting training script |
 | `api/train_tf_model.py` | TF Wide & Deep standalone training |
 | `ui/streamlit_app.py` | Streamlit 9-tab dashboard |
@@ -305,9 +310,10 @@ helm install taxi-app helm/taxi-app/ -n taxi-app --create-namespace
 | `k8s/taxi-app-simple.yaml` | K8s manifests: FastAPI, Streamlit, MLflow |
 | `k8s/monitoring.yaml` | K8s manifests: Prometheus, Grafana |
 | `helm/taxi-app/` | Helm chart for parameterized deployment |
+| `docs/INTERVIEW_SCALABILITY_REVIEW.md` | Interview-ready review and scalability optimization notes |
 | `Dockerfile` | Unified image (API + UI + sklearn training + Prometheus) |
 | `.github/workflows/ci.yml` | CI/CD pipeline |
-| `tests/` | 54 automated tests (4 modules) |
+| `tests/` | 62 automated tests (5 modules) |
 | `.dvc/` | DVC configuration for data versioning |
 | `components/` | TFX custom components (drift monitor, KServe deployer, alert manager, model monitoring) |
 | `docs/PROJECT_ANALYSIS.md` | Project maturity analysis |

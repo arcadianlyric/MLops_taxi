@@ -16,7 +16,7 @@
 
 ### 概述
 
-基于 Chicago 出租车数据的端到端 MLOps 平台。Kubernetes 5 Pod 部署，54 项自动化测试，Prometheus/Grafana 可观测性，A/B 测试框架，漂移触发自动重训练，Helm Chart 参数化部署。
+基于 Chicago 出租车数据的端到端 MLOps 平台。Kubernetes 默认 6 Pod（5 类服务）部署，62 项自动化测试，Prometheus/Grafana 可观测性，A/B 测试框架，漂移触发自动重训练，Agentic drift-to-retrain 控制面，Helm Chart 参数化部署。
 
 ### 量化指标
 
@@ -26,9 +26,9 @@
 | **sklearn MAE** | $0.359 |
 | **TF Wide & Deep 准确率** | 89.7% |
 | **TF Wide & Deep AUC** | 0.95 |
-| **自动化测试** | 54 项通过（4 个测试模块） |
+| **自动化测试** | 62 项通过（5 个测试模块） |
 | **API 端点** | 40+ |
-| **K8s Pod 数** | 5（FastAPI, Streamlit, MLflow, Prometheus, Grafana） |
+| **K8s Pod 数** | 默认 6（2 个 FastAPI + Streamlit, MLflow, Prometheus, Grafana） |
 | **数据量** | 15,002 条 Chicago 出租车行程 |
 
 ### 核心能力
@@ -37,7 +37,9 @@
 - **Prometheus + Grafana 监控**：预测延迟直方图、吞吐量计数器、模型精度仪表、漂移分数仪表、告警规则
 - **A/B 测试框架**：加权流量分配，按变体统计延迟和预测结果
 - **自动重训练**：漂移检测超阈值后台触发 sklearn 重训练，冷却机制，结果记录到 MLflow
+- **Agentic drift-to-retrain 闭环**：Monitor -> policy guardrails -> evaluator -> optional retrain，输出 trace，且不自动 promotion 生产模型
 - **MLflow 实验追踪**：独立 MLflow Pod，实验管理，模型注册，指标记录
+- **可扩展 Serving**：有界并行 `/batch_predict`、可配置 batch 限制、进程内历史上限、2 个 FastAPI 副本、HPA 2-6 副本配置
 - **Helm Chart**：参数化部署全部 5 个服务，可配置资源、监控开关、环境变量
 - **DVC 集成**：训练数据版本控制
 - **CI/CD**：GitHub Actions（lint, pytest, Docker build），push/PR 触发
@@ -165,6 +167,7 @@ GitHub Actions（`.github/workflows/ci.yml`）：checkout -> Python 3.9 -> pip i
 | POST | `/retrain/trigger` | 手动触发重训练（含原因标签） |
 | GET | `/retrain/status` | 当前重训练状态、冷却时间、模型元数据 |
 | POST | `/retrain/auto-check` | 检测漂移，超阈值时触发重训练 |
+| POST | `/agentic/drift-retrain/run` | Agentic 控制面：默认 dry-run，`execute=true` 时可触发重训练，但禁止自动模型 promotion |
 
 **机制**: `/retrain/auto-check` 对 `trip_miles`, `fare`, `trip_seconds` 计算标准化均值差。若任一特征超过 `DRIFT_RETRAIN_THRESHOLD`（默认 0.3）且冷却期已过（`RETRAIN_COOLDOWN_MINUTES`，默认 30），后台任务：
 
@@ -182,7 +185,7 @@ GitHub Actions（`.github/workflows/ci.yml`）：checkout -> Python 3.9 -> pip i
 
 ### 2.8 测试
 
-54 项测试，分 4 个模块：
+62 项测试，分 5 个模块：
 
 | 模块 | 测试数 | 覆盖范围 |
 |------|--------|----------|
@@ -190,6 +193,7 @@ GitHub Actions（`.github/workflows/ci.yml`）：checkout -> Python 3.9 -> pip i
 | `test_api_data.py` | 7 | 数据统计、漂移检测 |
 | `test_api_advanced.py` | 21 | Feast、Kafka、MLflow、MLMD |
 | `test_api_phase2.py` | 16 | A/B 测试、自动重训练、Prometheus |
+| `test_agentic_drift_retrain.py` | 5 | Agentic 漂移监控、策略、重训练建议、API dry-run |
 
 ```bash
 pytest tests/ -v
@@ -280,6 +284,7 @@ helm install taxi-app helm/taxi-app/ -n taxi-app --create-namespace
 | 文件 | 说明 |
 |------|------|
 | `api/taxi_full_api.py` | FastAPI 后端：40+ 端点，sklearn 模型，Prometheus 指标，A/B 测试，自动重训练 |
+| `agentic/` | Agentic drift-to-retrain 闭环：monitor、policy guardrails、evaluator、retrainer、orchestrator |
 | `api/train_model.py` | sklearn GradientBoosting 训练脚本 |
 | `api/train_tf_model.py` | TF Wide & Deep 独立训练 |
 | `ui/streamlit_app.py` | Streamlit 9 页仪表板 |
@@ -289,7 +294,7 @@ helm install taxi-app helm/taxi-app/ -n taxi-app --create-namespace
 | `helm/taxi-app/` | Helm Chart 参数化部署 |
 | `Dockerfile` | 统一镜像（API + UI + sklearn 训练 + Prometheus） |
 | `.github/workflows/ci.yml` | CI/CD 流水线 |
-| `tests/` | 54 项自动化测试（4 个模块） |
+| `tests/` | 62 项自动化测试（5 个模块） |
 | `.dvc/` | DVC 数据版本管理配置 |
 | `components/` | TFX 自定义组件（漂移监控、KServe 部署器、告警管理、模型监控） |
 | `docs/PROJECT_ANALYSIS.md` | 项目成熟度分析 |

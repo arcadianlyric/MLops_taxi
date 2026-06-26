@@ -61,6 +61,18 @@ class TestBatchPredict:
         assert data["count"] == 3
         assert len(data["predictions"]) == 3
 
+    def test_batch_predict_includes_scalability_metadata(self, api_client, sample_trip):
+        payload = {"trips": [sample_trip] * 4, "model_name": "taxi_model"}
+        data = api_client.post("/batch_predict", json=payload).json()
+        assert data["batch_max_size"] >= 4
+        assert data["batch_workers"] >= 1
+        assert data["latency_ms"] >= 0
+        assert data["throughput_predictions_per_second"] > 0
+
+    def test_batch_predict_rejects_empty_batch(self, api_client):
+        resp = api_client.post("/batch_predict", json={"trips": [], "model_name": "taxi_model"})
+        assert resp.status_code == 422
+
 
 class TestMetrics:
     def test_metrics_returns_200(self, api_client):

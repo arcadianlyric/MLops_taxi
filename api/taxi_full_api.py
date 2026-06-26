@@ -19,6 +19,8 @@ import random
 import hashlib
 import time
 import threading
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 # Prometheus metrics
 try:
@@ -53,9 +55,15 @@ _tf_model = None
 _model_meta = None
 _sklearn_model = None
 _sklearn_meta = None
+_sklearn_label_encoders = {}
 _mlflow_client = None
 _mlflow_connected = False
 MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://mlflow-service:5000")
+BATCH_MAX_SIZE = max(1, int(os.environ.get("BATCH_MAX_SIZE", "512")))
+BATCH_MAX_WORKERS = max(1, int(os.environ.get("BATCH_MAX_WORKERS", str(min(8, (os.cpu_count() or 2) + 2)))))
+PREDICTION_HISTORY_MAX = max(1, int(os.environ.get("PREDICTION_HISTORY_MAX", "1000")))
+_batch_executor = ThreadPoolExecutor(max_workers=BATCH_MAX_WORKERS)
+_prediction_lock = threading.Lock()
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -245,7 +253,7 @@ def _register_model_with_mlflow():
 
 def _load_tf_model():
     """Load TensorFlow SavedModel if available, then try sklearn fallback."""
-    global _tf_model, _model_meta, _sklearn_model, _sklearn_meta
+    global _tf_model, _model_meta, _sklearn_model, _sklearn_meta, _sklearn_label_encoders
     # Try TF first
     if TF_AVAILABLE and os.path.isdir(SAVED_MODEL_DIR):
         try:
@@ -266,6 +274,7 @@ def _load_tf_model():
             import joblib
             bundle = joblib.load(SKLEARN_MODEL_PATH)
             _sklearn_model = bundle["model"]
+            _sklearn_label_encoders = bundle.get("label_encoders", {})
             if os.path.exists(SKLEARN_META_PATH):
                 with open(SKLEARN_META_PATH) as f:
                     _sklearn_meta = json.load(f)
@@ -323,7 +332,7 @@ class TaxiTripRequest(BaseModel):
 
 
 class BatchTripRequest(BaseModel):
-    trips: List[TaxiTripRequest]
+    trips: List[TaxiTripRequest] = Field(..., min_length=1, max_length=BATCH_MAX_SIZE)
     model_name: str = "taxi_model"
 
 
@@ -374,24 +383,14 @@ def _predict_with_sklearn(trip: TaxiTripRequest) -> float:
         "trip_start_hour", "trip_start_day", "trip_start_month",
         "payment_type_enc", "company_enc",
     ])
-    # Use the saved LabelEncoders from the joblib bundle
-    le_bundle = getattr(_predict_with_sklearn, "_le", None)
-    if le_bundle is None:
-        try:
-            import joblib
-            bundle = joblib.load(SKLEARN_MODEL_PATH)
-            _predict_with_sklearn._le = bundle.get("label_encoders", {})
-            le_bundle = _predict_with_sklearn._le
-        except Exception:
-            le_bundle = {}
     # Encode categoricals using the real LabelEncoder
     def _enc(le, val):
         try:
             return int(le.transform([str(val)])[0])
         except (ValueError, KeyError):
             return 0
-    pay_enc = _enc(le_bundle["payment_type"], trip.payment_type) if "payment_type" in le_bundle else 0
-    comp_enc = _enc(le_bundle["company"], trip.company) if "company" in le_bundle else 0
+    pay_enc = _enc(_sklearn_label_encoders["payment_type"], trip.payment_type) if "payment_type" in _sklearn_label_encoders else 0
+    comp_enc = _enc(_sklearn_label_encoders["company"], trip.company) if "company" in _sklearn_label_encoders else 0
     val_map = {
         "fare": trip.fare, "trip_miles": trip.trip_miles, "trip_seconds": trip.trip_seconds,
         "pickup_community_area": trip.pickup_community_area,
@@ -431,7 +430,8 @@ def _predict_rule_based(trip: TaxiTripRequest) -> float:
 
 def predict_tip(trip: TaxiTripRequest, force_model: str = None) -> float:
     global prediction_count
-    prediction_count += 1
+    with _prediction_lock:
+        prediction_count += 1
     t0 = time.time()
     model_used = "rule_based"
     status = "ok"
@@ -482,6 +482,7 @@ async def root():
             "mlflow": "/mlflow/*", "mlmd": "/mlmd/*",
             "data_stats": "/data/stats", "data_drift": "/data/drift",
             "ab_testing": "/ab/*", "retrain": "/retrain/*",
+            "agentic_drift_retrain": "/agentic/drift-retrain/run",
             "prometheus": "/metrics/prometheus",
         },
     }
@@ -536,7 +537,10 @@ async def predict(trip: TaxiTripRequest):
             "pickup_hour": trip.pickup_hour,
             "timestamp": datetime.now().isoformat(),
         }
-        prediction_history.append(result)
+        with _prediction_lock:
+            prediction_history.append(result)
+            if len(prediction_history) > PREDICTION_HISTORY_MAX:
+                del prediction_history[:-PREDICTION_HISTORY_MAX]
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -545,11 +549,24 @@ async def predict(trip: TaxiTripRequest):
 @app.post("/batch_predict")
 async def batch_predict(request: BatchTripRequest):
     try:
-        predictions = [predict_tip(t) for t in request.trips]
+        start = time.perf_counter()
+        loop = asyncio.get_running_loop()
+        predictions = await asyncio.gather(
+            *[
+                loop.run_in_executor(_batch_executor, predict_tip, trip)
+                for trip in request.trips
+            ]
+        )
+        latency_ms = round((time.perf_counter() - start) * 1000, 2)
+        throughput = round(len(predictions) / max(latency_ms / 1000, 0.001), 2)
         return {
             "predictions": predictions,
             "count": len(predictions),
             "model_name": request.model_name,
+            "batch_max_size": BATCH_MAX_SIZE,
+            "batch_workers": BATCH_MAX_WORKERS,
+            "latency_ms": latency_ms,
+            "throughput_predictions_per_second": throughput,
             "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
@@ -1725,6 +1742,72 @@ async def retrain_auto_check(background_tasks: BackgroundTasks):
         "max_drift": round(max_drift, 3),
         "threshold": DRIFT_RETRAIN_THRESHOLD,
     }
+
+
+# ===================================================================
+# AGENTIC DRIFT-TO-RETRAIN CONTROL LOOP
+# ===================================================================
+
+@app.post("/agentic/drift-retrain/run")
+async def agentic_drift_retrain_run(
+    background_tasks: BackgroundTasks,
+    execute: bool = Query(False, description="If true, execute retrain when the agent recommends it."),
+):
+    """Run the agentic monitor -> evaluate -> retrain loop.
+
+    Default mode is a safe dry-run: the agent can recommend retraining and
+    produce a trace, but it will not mutate production state. Passing
+    execute=true allows the existing retrain trigger to run, while model
+    promotion remains blocked by policy.
+    """
+    from agentic.orchestrator import TaxiDriftRetrainOrchestrator
+
+    drift_payload = await get_data_drift()
+    status_payload = await retrain_status()
+
+    orchestrator = TaxiDriftRetrainOrchestrator()
+    result = orchestrator.run(
+        drift_payload=drift_payload,
+        retrain_status=status_payload,
+        execute_retrain=False,
+    )
+
+    if execute and result["evaluation_decision"]["action"] == "retrain":
+        try:
+            trigger_response = await retrain_trigger(background_tasks, reason="agentic_drift")
+            result["action"] = "retrain_triggered"
+            result["execute_retrain"] = True
+            result["retrain_result"] = {
+                "executed": True,
+                "status": "triggered",
+                "reason": "agentic_drift",
+                "trigger_response": trigger_response,
+                "timestamp": datetime.now().isoformat(),
+            }
+            result["trace"].append({
+                "agent": "TaxiRetrainerAgent",
+                "step": "act",
+                "status": "triggered",
+                "summary": {"executed": True, "promotion_allowed": False},
+            })
+        except HTTPException as exc:
+            result["action"] = "alert"
+            result["execute_retrain"] = True
+            result["retrain_result"] = {
+                "executed": False,
+                "status": "blocked",
+                "reason": str(exc.detail),
+                "trigger_response": None,
+                "timestamp": datetime.now().isoformat(),
+            }
+            result["trace"].append({
+                "agent": "TaxiRetrainerAgent",
+                "step": "act",
+                "status": "blocked",
+                "summary": {"executed": False, "reason": str(exc.detail)},
+            })
+
+    return result
 
 
 # ===================================================================
